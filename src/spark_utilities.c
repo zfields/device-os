@@ -11,7 +11,7 @@ fd_set readSet;
 
 // Spark Messages
 const char Device_Secret[] = "secret";
-const char Device_Name[] = "willisawesome";
+const char Device_Name[] = "pizzabutton";
 const char Device_Ok[] = "OK ";
 const char Device_Fail[] = "FAIL ";
 const char Device_CRLF[] = "\n";
