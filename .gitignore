@@ -38,3 +38,21 @@ RIDE/*
 
 # backup folder
 backup/*
+
+# GNU autoconf and automake products
+aclocal.m4
+autom4te.cache
+autoscan.log
+config.h.in
+config.h.in~
+config.h
+config.log
+config.status
+confLcsnID
+depcomp
+install-sh
+missing
+Makefile
+src/.deps
+src/.dirstamp
+stamp-h1
