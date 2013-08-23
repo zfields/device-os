@@ -219,7 +219,7 @@ int main(void)
 		if(WLAN_SMART_CONFIG_START)
 		{
 			/* Start CC3000 Smart Config Process */
-			Start_Smart_Config();
+			//Start_Smart_Config();
 		}
 		else if (WLAN_MANUAL_CONNECT && !WLAN_DHCP)
 		{
@@ -231,6 +231,7 @@ int main(void)
 		}
 
 #if defined (USE_SPARK_CORE_V02)
+/*
 		if(Spark_Error_Count)
 		{
 			SPARK_LED_TOGGLE = 0;
@@ -248,6 +249,7 @@ int main(void)
 			LED_On(LED_RGB);
 			SPARK_LED_TOGGLE = 1;
 		}
+		*/
 #endif
 
 		// Complete Smart Config Process:
@@ -277,11 +279,12 @@ int main(void)
 #endif
 
 			Socket_Connect_Count++;
-
+/*
 			if(Spark_Connect() < 0)
 				SPARK_SOCKET_CONNECTED = 0;
 			else
 				SPARK_SOCKET_CONNECTED = 1;
+*/
 		}
 #endif
 
@@ -403,6 +406,8 @@ void Timing_Decrement(void)
 #endif
 
 #ifdef SPARK_WLAN_ENABLE
+
+/*
     if (WLAN_CONNECTED && !SPARK_SOCKET_CONNECTED)
     {
 		if (!Socket_Connect_Count)
@@ -478,6 +483,7 @@ void Timing_Decrement(void)
 			Socket_Connect_Count = 0;
 		}
 	}
+	*/
 #endif
 }
 

@@ -7,7 +7,11 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 extern uint8_t WLAN_MANUAL_CONNECT;
+extern uint8_t WLAN_DHCP;
+extern uint8_t SPARK_SOCKET_CONNECTED;
+extern uint8_t SPARK_DEVICE_ACKED;
 
 void setup();
 void loop();
@@ -38,11 +42,34 @@ void setup()
 	Serial.begin(9600);	
 }
 
+int notYetConnected = 1;
+int notifiedAboutDHCP = 0;
+
 
 
 void loop()
 {
-	checkSerial();	
+	checkSerial();
+	
+	//DEBUG//
+	if (notYetConnected) {
+		notYetConnected = 0;
+		Serial.println("connecting...");
+		tester_connect("test1234", "pass4321");		
+	}
+	//DEBUG//
+
+	
+	
+	if (!WLAN_MANUAL_CONNECT && WLAN_DHCP && !notifiedAboutDHCP) {
+		notifiedAboutDHCP = 1;
+		Serial.println("We have DHCP!");
+		SPARK_SOCKET_CONNECTED = 1;
+		SPARK_DEVICE_ACKED = 1;
+		//DEBUG//
+		//tester_ping("192.168.137.1", "8989", "Hi Dave!");
+		//DEBUG//
+	}
 }
 
 
@@ -84,14 +111,16 @@ void checkSerial() {
 			
 				//expecting OPEN:IP:PORT:MSG;
 				Serial.println("tokenizing...");				
-				tokenizeCommand(command, parts);
+				tokenizeCommand(start, parts);
 				
 				Serial.println(parts[0]);
 				Serial.println(parts[1]);
 				Serial.println(parts[2]);
 				Serial.println(parts[3]);
 				
+				Serial.println("sending...");
 				tester_ping(parts[1], parts[2], parts[3]);
+				
 			}
 		}
 	}
@@ -101,12 +130,7 @@ void tester_connect(char *ssid, char *pass) {
 
 	wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
 	wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), NULL, pass, strlen(pass));
-	WLAN_MANUAL_CONNECT = 1;
-	
-	/* Edit the below line before use*/
-	//wlan_connect(WLAN_SEC_WPA2, "ssid", 4, NULL, "password", 8);
-	
-	
+	WLAN_MANUAL_CONNECT = 0;
 	
 	USERLED_SetRGBColor(0xFF00FF);		//purple
 	USERLED_On(LED_RGB);
@@ -117,7 +141,7 @@ void tester_ping(char *ip, char *port, char *msg) {
 
 	Connect_IP(ip, 8989, msg);
 	Serial.println("Msg sent?");
-	USERLED_SetRGBColor(0x00FFFF);		//purple
+	USERLED_SetRGBColor(0x00FFFF);		//cyan?
 	USERLED_On(LED_RGB);
 }
 
@@ -153,6 +177,16 @@ int* parseIP(char *ip) {
 	return parts;
 }
 
+void printIP(int* parts) {
+	char ip[4];
+	int i=0;
+	for(i=0;i<4;i++) {
+		itoa(parts[i], &ip);
+		Serial.print(ip);
+		Serial.print(".");	
+	}
+}
+
 int Connect_IP(char *ip, int port, char *msg)
 {
 	int* parts = parseIP(ip);
@@ -172,7 +206,9 @@ int Connect_IP(char *ip, int port, char *msg)
 	// the destination port
     tSocketAddr.sa_data[0] = (SPARK_SERVER_PORT & 0xFF00) >> 8;
     tSocketAddr.sa_data[1] = (SPARK_SERVER_PORT & 0x00FF);
-
+	
+	//printIP(parts);
+	
 	// the destination IP address
 	tSocketAddr.sa_data[2] = parts[0];	// First Octet of destination IP
 	tSocketAddr.sa_data[3] = parts[1];	// Second Octet of destination IP
@@ -188,7 +224,8 @@ int Connect_IP(char *ip, int port, char *msg)
 	}
 	else
 	{
-		retVal = send(socket, msg, strlen(msg), 0);
+		Serial.println("Connected?! not sending");
+		//retVal = send(socket, msg, strlen(msg), 0);
 		//retVal = Spark_Send_Device_Message(testSocket, (char *)Device_Secret, NULL, NULL);
 	}
 
