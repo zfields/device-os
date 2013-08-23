@@ -31,7 +31,7 @@ __IO uint32_t TimingSparkProcessAPI;
 __IO uint32_t TimingSparkAliveTimeout;
 __IO uint32_t TimingSparkResetTimeout;
 
-uint8_t WLAN_MANUAL_CONNECT = 0;//For Manual connection, set this to 1
+uint8_t WLAN_MANUAL_CONNECT = 1;//For Manual connection, set this to 1
 uint8_t WLAN_SMART_CONFIG_START;
 uint8_t WLAN_SMART_CONFIG_STOP;
 uint8_t WLAN_SMART_CONFIG_FINISHED;
@@ -223,10 +223,11 @@ int main(void)
 		}
 		else if (WLAN_MANUAL_CONNECT && !WLAN_DHCP)
 		{
-		    wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
+			//SEE WIFI TESTER
+		    //wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
 		    /* Edit the below line before use*/
-		    wlan_connect(WLAN_SEC_WPA2, "ssid", 4, NULL, "password", 8);
-		    WLAN_MANUAL_CONNECT = 0;
+		    //wlan_connect(WLAN_SEC_WPA2, "ssid", 4, NULL, "password", 8);
+		    //WLAN_MANUAL_CONNECT = 0;
 		}
 
 #if defined (USE_SPARK_CORE_V02)
@@ -286,8 +287,8 @@ int main(void)
 
 #ifdef SPARK_WIRING_ENABLE
 #ifdef SPARK_WLAN_ENABLE
-		if(SPARK_SOCKET_CONNECTED && SPARK_DEVICE_ACKED)
-		{
+//		if(SPARK_SOCKET_CONNECTED && SPARK_DEVICE_ACKED)
+//		{
 #endif
 			if((SPARK_DEVICE_IWDGRST != 1) && (NULL != loop))
 			{
@@ -299,7 +300,7 @@ int main(void)
 				pHandleMessage();
 			}
 #ifdef SPARK_WLAN_ENABLE
-		}
+//		}
 #endif
 #endif
 	}

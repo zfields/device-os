@@ -7,6 +7,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+extern uint8_t WLAN_MANUAL_CONNECT;
+
 void setup();
 void loop();
 void checkSerial();
@@ -31,7 +33,8 @@ void setup()
 {   
 	//take over the light.
 	Set_RGBUserMode(1);
-	USERLED_SetRGBColor(0x0000FF);		//blue
+	USERLED_SetRGBColor(RGB_COLOR_BLUE);		//blue
+	USERLED_On(LED_RGB);;
 	Serial.begin(9600);	
 }
 
@@ -50,22 +53,43 @@ void checkSerial() {
 		
 		if (cmd_index < cmd_length) {
 			command[cmd_index] = c;
+			cmd_index++;
 		}
 		
 		if (c == ';') {
+			Serial.println("got semicolon.");
+			Serial.print("checking command: ");
+			Serial.println(command);
+			
 			char* parts[5];			
+			char *start;
 			
-			if (0 == (strncmp(command, cmd_CONNECT, strlen(cmd_CONNECT)))) {
+			if (start = strstr(command, cmd_CONNECT)) {
+				cmd_index = 0;
+				
+				Serial.println("tokenizing...");
+				
 				//expecting CONNECT:SSID:PASS;
-				tokenizeCommand(command, parts);
+				tokenizeCommand(start, parts);
+				Serial.println("parts...");
+				Serial.println(parts[0]);
+				Serial.println(parts[1]);
+				Serial.println(parts[2]);
 				
-				
-				tester_connect(parts[1], parts[2]);
-			
+				Serial.println("connecting...");
+				tester_connect(parts[1], parts[2]);			
 			}
-			else if (0 == (strncmp(command, cmd_OPEN, strlen(cmd_OPEN)))) {
-				//expecting OPEN:IP:PORT:MSG;				
+			else if (start = strstr(command, cmd_OPEN)) { 
+				cmd_index = 0;
+			
+				//expecting OPEN:IP:PORT:MSG;
+				Serial.println("tokenizing...");				
 				tokenizeCommand(command, parts);
+				
+				Serial.println(parts[0]);
+				Serial.println(parts[1]);
+				Serial.println(parts[2]);
+				Serial.println(parts[3]);
 				
 				tester_ping(parts[1], parts[2], parts[3]);
 			}
@@ -75,14 +99,26 @@ void checkSerial() {
 
 void tester_connect(char *ssid, char *pass) {
 
-	wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), NULL, *pass, strlen(*pass));
+	wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
+	wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), NULL, pass, strlen(pass));
+	WLAN_MANUAL_CONNECT = 1;
+	
+	/* Edit the below line before use*/
+	//wlan_connect(WLAN_SEC_WPA2, "ssid", 4, NULL, "password", 8);
+	
+	
+	
 	USERLED_SetRGBColor(0xFF00FF);		//purple
+	USERLED_On(LED_RGB);
+	Serial.println("WIFI Connected?");
 }
 
 void tester_ping(char *ip, char *port, char *msg) {
 
 	Connect_IP(ip, 8989, msg);
+	Serial.println("Msg sent?");
 	USERLED_SetRGBColor(0x00FFFF);		//purple
+	USERLED_On(LED_RGB);
 }
 
 
@@ -91,13 +127,13 @@ void tokenizeCommand(char *cmd, char* parts[]) {
 	int idx = 0;
 	
 	//printf ("Splitting string \"%s\" into tokens:\n", cmd);
-	pch = strtok (cmd,":");
+	pch = strtok (cmd,":;");
 	while (pch != NULL)
 	{
 		if (idx < 5) {
 			parts[idx++] = pch;
 		}
-		pch = strtok (NULL, ":");
+		pch = strtok (NULL, ":;");
 	}
 }
 
