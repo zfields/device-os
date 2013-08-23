@@ -219,6 +219,7 @@ int Connect_IP(char *ip, int port, char *msg)
 
 	if (retVal < 0)
 	{
+		Serial.println("Not connected?");
 		// Unable to connect
 		return -1;
 	}
