@@ -2,86 +2,36 @@
 #include "spark_utilities.h"
 #include "application.h"
 #include "spark_wiring.h"
+#include "socket.h"
+#include "netapp.h"
 #include <string.h>
-
-/*
-#include "main.h"
-#include "usb_lib.h"
-#include "usb_desc.h"
-#include "usb_pwr.h"
-#include "sst25vf_spi.h"
-#include "spark_utilities.h"
-*/
+#include <stdlib.h>
 
 void setup();
 void loop();
-void allOff();
-void handlePinMessage(int pin);
-void checkButton();
-void handleRGBMessage(int pin);
-void setRGBLED();
+void checkSerial();
+void tester_connect(char *ssid, char *pass);
+void tester_ping(char *ip, char *port, char *msg);
+void tokenizeCommand(char *cmd, char** parts);
+int* parseIP(char *ip);
 
-int state = 0;
-int lastButton = 0;
-int lastButtonState = 0;
-uint32_t btnTime = 0;
-uint32_t debounceDelay = 50;
-uint32_t msgDelay = 2500;
-uint32_t btnDelay = 100;
-int msgCount = 0;
-int sendAlives = 0;
+int Connect_IP(char *ip, int port, char *msg);
+int Disconnect_IP(void);
+long testSocket = 0;
 
 
-
-    //in theory, these pin mappings could change, so this seems safest
-    //A0 = 10,A1 = 11,A2 = 12,A3 = 13,A4 = 14,A5 = 15,A6 = 16,A7 = 17
-	//D0 = 0, D1 = 1, D2 = 2, D3 = 3, D4 = 4, D5 = 5, D6 = 6, D7 = 7
-    //we aren't expecting D4-D7 to work on the programming rig because of the wiring
-
-//0,1,2,3,4,5,6,7,8,9,:,;,<,=,>,?
-int testPins[] = {
-    10,11,12,13,14,15,16,17,	0,1,2 /*,3,4,5,6,7*/
-};
-int numPins = 11;
-int pins_start = (int)'0';
-int pins_end = (int)'?';
-char buf[256];
-
-
-
-
-int numTestColors = 7;
-int rgb_start = (int)'A';
-int rgb_end = (int)'I';
-
-uint32_t RGBColor = 0;
-uint32_t testColors[] = {
-	0xFF0000, /*RGB_COLOR_RED*/	
-	0x00FF00, /*RGB_COLOR_GREEN*/	
-	0x0000FF, /*RGB_COLOR_BLUE*/	
-	0xFFFF00, /*RGB_COLOR_YELLOW*/	
-	0x00FFFF, /*RGB_COLOR_CYAN*/	
-	0xFF00FF, /*RGB_COLOR_MAGENTA*/	
-	0xFFFFFF /*RGB_COLOR_WHITE*/	
-};
-
-
+int cmd_index = 0, cmd_length = 256;
+char command[256];
+const char cmd_CONNECT[] = "CONNECT:";
+const char cmd_OPEN[] = "OPEN:";
 
 
 
 void setup()
-{
-    // light em up.
-    int i;
-    for(i=0;i<numPins;i++) {
-        pinMode(testPins[i], OUTPUT);
-    }
-	
-	//always take over the light.
+{   
+	//take over the light.
 	Set_RGBUserMode(1);
-	USERLED_SetRGBColor(0xFFFFFF);
-	
-	//BUTTON_Init(BUTTON1, BUTTON_MODE_GPIO);
+	USERLED_SetRGBColor(0x0000FF);		//blue
 	Serial.begin(9600);	
 }
 
@@ -89,118 +39,134 @@ void setup()
 
 void loop()
 {
-	if ( sendAlives ) {
-		if ((millis() % msgDelay) == 0) {	
-			if (msgCount == 0) {
-				Serial.println("ALIVE\n");
-			}
-			msgCount++;
-		}
-		else {
-			msgCount = 0;
-		}
-	}
-	
-	if ((millis() % btnDelay) == 0) {
-		checkButton();
-		btnDelay = 100;
-	}
-	 
-	
-	setRGBLED();
-	
+	checkSerial();	
+}
+
+
+void checkSerial() {
+
 	if (Serial.available()) {
-		int c = Serial.read();		
-		//char retStr[11];
-		//int retLen = 0;
-
-		if ((c >= pins_start) && (c <= pins_end)) {
-		//if ((c >= 0) && (c < numPins)) {
-			//if we should receive a byte value in the range of '0'-'9'
-			//lets assume they would like us to turn off all the pins, and turn on just that pin.
+		char c = (char)Serial.read();
+		
+		if (cmd_index < cmd_length) {
+			command[cmd_index] = c;
+		}
+		
+		if (c == ';') {
+			char* parts[5];			
 			
-			handlePinMessage(c - pins_start);
-						
-			//retLen = itoa(c-pins_start, retStr);
-			//retStr[retLen] = '\0';
-			//Serial.println(strcat(strcat("OK PIN ", retStr), "\n"));
-			Serial.println("OK PIN \n");
-		}
-		else if ((c >= rgb_start) && (c <= rgb_end)) {
-			handleRGBMessage(c - rgb_start);
-						
-			//retLen = itoa(c-rgb_start, retStr);
-			//retStr[retLen] = '\0';
-			//Serial.println(strcat(strcat("OK LED ", retStr), "\n"));
-			Serial.println("OK LED \n");
-		}
-		else if (c == 'X') {
-			sendAlives = 1;
-		}
-		else if (c == 'Z') {
-			sendAlives = 0;
-		}
-		else {
-			//other commands...?
-			Serial.print("HUH\n");
+			if (0 == (strncmp(command, cmd_CONNECT, strlen(cmd_CONNECT)))) {
+				//expecting CONNECT:SSID:PASS;
+				tokenizeCommand(command, parts);
+				
+				
+				tester_connect(parts[1], parts[2]);
+			
+			}
+			else if (0 == (strncmp(command, cmd_OPEN, strlen(cmd_OPEN)))) {
+				//expecting OPEN:IP:PORT:MSG;				
+				tokenizeCommand(command, parts);
+				
+				tester_ping(parts[1], parts[2], parts[3]);
+			}
 		}
 	}
+}
+
+void tester_connect(char *ssid, char *pass) {
+
+	wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), NULL, *pass, strlen(*pass));
+	USERLED_SetRGBColor(0xFF00FF);		//purple
+}
+
+void tester_ping(char *ip, char *port, char *msg) {
+
+	Connect_IP(ip, 8989, msg);
+	USERLED_SetRGBColor(0x00FFFF);		//purple
+}
+
+
+void tokenizeCommand(char *cmd, char* parts[]) {
+	char * pch;
+	int idx = 0;
 	
-	
-}
-
-void handlePinMessage(int pin) {
-    if ((pin < 0) || (pin > numPins)) {
-        //shouldn't get here.
-		Serial.println("ERROR: Weird pin value\n");
-		return;
-    }
-
-	allOff();
-	digitalWrite(testPins[pin], HIGH);
-}
-
-void allOff() {
-    //	digitalWrite(D1, LOW);
-    //	...
-    //	digitalWrite(D3, LOW);
-
-    //iterate over the pins, setting them all LOW
-
-    int i;
-    for(i=0;i<numPins;i++) {
-        digitalWrite(testPins[i], LOW);
-    }
-}
-
-void handleRGBMessage(int idx) {
-	if ((idx >= 0) && (idx < numTestColors)) {
-		RGBColor = testColors[idx];
-	}
-	else {
-		RGBColor = 0;
-		USERLED_Off(LED_RGB);
-	}
-}
-
-void setRGBLED() {
-	if (RGBColor > 0) {
-		USERLED_SetRGBColor(RGBColor);
-		USERLED_On(LED_RGB);
-	}
-	else {
-		//USERLED_Off(LED_RGB);
-	}
-}
-
-
-
-
-void checkButton() {
-	if(BUTTON_GetDebouncedTime(BUTTON1) >= 100)
+	//printf ("Splitting string \"%s\" into tokens:\n", cmd);
+	pch = strtok (cmd,":");
+	while (pch != NULL)
 	{
-		BUTTON_ResetDebouncedState(BUTTON1);
-		Serial.println("BTN DOWN\n");
+		if (idx < 5) {
+			parts[idx++] = pch;
+		}
+		pch = strtok (NULL, ":");
 	}
 }
 
+
+int* parseIP(char *ip) {
+	int parts[4];
+	
+	int idx = 0;
+	char pch = strtok (ip,".");
+	while (pch != NULL)
+	{
+		if (idx < 4) {
+			parts[idx++] = atoi(pch);
+		}
+		pch = strtok (NULL, ".");
+	}
+	return parts;
+}
+
+int Connect_IP(char *ip, int port, char *msg)
+{
+	int* parts = parseIP(ip);
+	int retVal = 0;
+
+    long testSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (testSocket < 0)
+    {
+        //wlan_stop();
+        return -1;
+    }
+
+	// the family is always AF_INET
+	sockaddr tSocketAddr;
+    tSocketAddr.sa_family = AF_INET;
+
+	// the destination port
+    tSocketAddr.sa_data[0] = (SPARK_SERVER_PORT & 0xFF00) >> 8;
+    tSocketAddr.sa_data[1] = (SPARK_SERVER_PORT & 0x00FF);
+
+	// the destination IP address
+	tSocketAddr.sa_data[2] = parts[0];	// First Octet of destination IP
+	tSocketAddr.sa_data[3] = parts[1];	// Second Octet of destination IP
+	tSocketAddr.sa_data[4] = parts[2]; 	// Third Octet of destination IP
+	tSocketAddr.sa_data[5] = parts[3];	// Fourth Octet of destination IP
+
+	retVal = connect(testSocket, &tSocketAddr, sizeof(tSocketAddr));
+
+	if (retVal < 0)
+	{
+		// Unable to connect
+		return -1;
+	}
+	else
+	{
+		retVal = send(socket, msg, strlen(msg), 0);
+		//retVal = Spark_Send_Device_Message(testSocket, (char *)Device_Secret, NULL, NULL);
+	}
+
+    return retVal;
+}
+
+int Disconnect_IP(void)
+{
+    int retVal = 0;
+
+    retVal = closesocket(testSocket);
+
+    if(retVal == 0)
+    	testSocket = 0xFFFFFFFF;
+
+    return retVal;
+}

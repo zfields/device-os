@@ -15,7 +15,7 @@ rem make all
 del tester.*
 
 set USER_DIR=tester
-set CORE_FIRMWARE=tester
+set CORE_FIRMWARE=wifitester
 make clean all
 
 pause
