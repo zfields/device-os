@@ -19,7 +19,8 @@ void checkSerial();
 void tester_connect(char *ssid, char *pass);
 void tester_ping(char *ip, char *port, char *msg);
 void tokenizeCommand(char *cmd, char** parts);
-int* parseIP(char *ip);
+int* parseIP(char *ip, int *parts);
+void printIP(int* parts);
 
 int Connect_IP(char *ip, int port, char *msg);
 int Disconnect_IP(void);
@@ -30,6 +31,7 @@ int cmd_index = 0, cmd_length = 256;
 char command[256];
 const char cmd_CONNECT[] = "CONNECT:";
 const char cmd_OPEN[] = "OPEN:";
+const char cmd_PARSE[] = "PARSE:";
 
 
 
@@ -51,14 +53,15 @@ void loop()
 {
 	checkSerial();
 	
+	/*
 	//DEBUG//
 	if (notYetConnected) {
 		notYetConnected = 0;
 		Serial.println("connecting...");
-		tester_connect("test1234", "pass4321");		
+		tester_connect("CoCo", "________");	
 	}
 	//DEBUG//
-
+	*/
 	
 	
 	if (!WLAN_MANUAL_CONNECT && WLAN_DHCP && !notifiedAboutDHCP) {
@@ -66,9 +69,6 @@ void loop()
 		Serial.println("We have DHCP!");
 		SPARK_SOCKET_CONNECTED = 1;
 		SPARK_DEVICE_ACKED = 1;
-		//DEBUG//
-		//tester_ping("192.168.137.1", "8989", "Hi Dave!");
-		//DEBUG//
 	}
 }
 
@@ -104,13 +104,13 @@ void checkSerial() {
 				Serial.println(parts[2]);
 				
 				Serial.println("connecting...");
-				tester_connect(parts[1], parts[2]);			
+				tester_connect(parts[1], parts[2]);	
 			}
 			else if (start = strstr(command, cmd_OPEN)) { 
 				cmd_index = 0;
 			
 				//expecting OPEN:IP:PORT:MSG;
-				Serial.println("tokenizing...");				
+				Serial.println("tokenizing...");
 				tokenizeCommand(start, parts);
 				
 				Serial.println(parts[0]);
@@ -121,6 +121,28 @@ void checkSerial() {
 				Serial.println("sending...");
 				tester_ping(parts[1], parts[2], parts[3]);
 				
+			}
+			else if (start = strstr(command, cmd_PARSE)) {
+				cmd_index = 0;
+				
+				Serial.println("tokenizing...");
+				tokenizeCommand(start, parts);
+				
+				Serial.println(parts[0]);
+				Serial.println(parts[1]);
+				Serial.println(parts[2]);
+				Serial.println(parts[3]);
+				
+				int ip[4];
+				parseIP(parts[1], ip);
+				printIP(ip);
+				
+				int test[4];
+				test[0] = 11;
+				test[1] = 22;
+				test[2] = 33;
+				test[3] = 44;
+				printIP(test);
 			}
 		}
 	}
@@ -162,15 +184,13 @@ void tokenizeCommand(char *cmd, char* parts[]) {
 }
 
 
-int* parseIP(char *ip) {
-	int parts[4];
-	
+int* parseIP(char *ip, int* parts) {
 	int idx = 0;
-	char pch = strtok (ip,".");
+	char *pch = strtok (ip,".");
 	while (pch != NULL)
 	{
 		if (idx < 4) {
-			parts[idx++] = atoi(pch);
+			parts[idx++] = (char)atoi(pch);
 		}
 		pch = strtok (NULL, ".");
 	}
@@ -178,18 +198,19 @@ int* parseIP(char *ip) {
 }
 
 void printIP(int* parts) {
-	char ip[4];
+	char ip[6];
 	int i=0;
 	for(i=0;i<4;i++) {
-		itoa(parts[i], &ip);
+		itoa(parts[i], ip);
 		Serial.print(ip);
-		Serial.print(".");	
+		Serial.print(".");
 	}
 }
 
 int Connect_IP(char *ip, int port, char *msg)
 {
-	int* parts = parseIP(ip);
+	int parts[4];
+	parseIP(ip, parts);
 	int retVal = 0;
 
     long testSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -207,8 +228,6 @@ int Connect_IP(char *ip, int port, char *msg)
     tSocketAddr.sa_data[0] = (SPARK_SERVER_PORT & 0xFF00) >> 8;
     tSocketAddr.sa_data[1] = (SPARK_SERVER_PORT & 0x00FF);
 	
-	//printIP(parts);
-	
 	// the destination IP address
 	tSocketAddr.sa_data[2] = parts[0];	// First Octet of destination IP
 	tSocketAddr.sa_data[3] = parts[1];	// Second Octet of destination IP
@@ -219,15 +238,14 @@ int Connect_IP(char *ip, int port, char *msg)
 
 	if (retVal < 0)
 	{
-		Serial.println("Not connected?");
 		// Unable to connect
+		Serial.println("Not connected?");
 		return -1;
 	}
 	else
 	{
-		Serial.println("Connected?! not sending");
-		//retVal = send(socket, msg, strlen(msg), 0);
-		//retVal = Spark_Send_Device_Message(testSocket, (char *)Device_Secret, NULL, NULL);
+		Serial.println("Connected?! sending msg...");
+		retVal = send(testSocket, msg, strlen(msg), 0);
 	}
 
     return retVal;
