@@ -4,12 +4,12 @@
 
 #include "main.h"
 
-#define SPARK_BUF_LEN	256
+#define SPARK_BUF_LEN	512
 
 //#define BYTE_N(x,n)					(((x) >> n*8) & 0x000000FF)
 
-//#define SPARK_SERVER_IP				"54.235.79.249"
-#define SPARK_SERVER_PORT			8989
+//#define SPARK_SERVER_IP				"54.235.79.249" /* HARDCODED in SPARK_UTILITIES.C */
+#define SPARK_SERVER_PORT			5683
 
 #define USER_VAR_MAX_COUNT			10
 #define USER_VAR_KEY_LENGTH			12
@@ -47,6 +47,10 @@ int Spark_Connect(void);
 int Spark_Disconnect(void);
 int Spark_Process_API_Response(void);
 
+int Spark_Continue_Handshake(void);
+void Spark_Handshake_Next(void);
+
+
 bool userVarSchedule(const char *varKey, unsigned char token);
 void userVarReturn(void);
 
@@ -54,6 +58,11 @@ bool userFuncSchedule(const char *funcKey, unsigned char token, const char *para
 void userFuncExecute(void);
 
 void sendMessage(char *message);
+
+//let the core know we're expecting a certain size message.
+void receive_chunk(int size);
+
+int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue);
 //void sendMessageWithData(char *message, char *data, long size);
 
 //void handleMessage(void) __attribute__ ((weak, alias ("Default_Handler")));

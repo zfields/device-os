@@ -1,8 +1,10 @@
+
 #include "spark_utilities.h"
 #include "socket.h"
 #include "netapp.h"
 #include "string.h"
 #include <stdarg.h>
+//#include "handshake.h"
 
 long sparkSocket;
 sockaddr tSocketAddr;
@@ -29,12 +31,20 @@ char digits[] = "0123456789";
 
 char recvBuff[SPARK_BUF_LEN];
 int total_bytes_received = 0;
+int spark_expected_message_length = 0;
 
 void (*pHandleMessage)(void);
 char msgBuff[SPARK_BUF_LEN];
 
 int User_Var_Count;
 int User_Func_Count;
+
+
+typedef enum
+{
+	READ_NONCE = 0, SEND_COREID, READ_SESSIONKEY, SEND_HELLO, GET_HELLO, DONE
+} Spark_Handshake_TypeDef;
+Spark_Handshake_TypeDef HandshakeStage = READ_NONCE;
 
 struct User_Var_Lookup_Table_t
 {
@@ -56,9 +66,11 @@ struct User_Func_Lookup_Table_t
 } User_Func_Lookup_Table[USER_FUNC_MAX_COUNT];
 
 static void handle_message(void);
-static int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue);
+//static int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue);
 static unsigned char itoa(int cNum, char *cString);
 static uint8_t atoc(char data);
+
+//static int Do_Spark_Handshake(long socket);
 
 /*
 static uint16_t atoshort(char b1, char b2);
@@ -192,10 +204,10 @@ int Spark_Connect(void)
     tSocketAddr.sa_data[1] = (SPARK_SERVER_PORT & 0x00FF);
 
 	// the destination IP address
-	tSocketAddr.sa_data[2] = 54;	// First Octet of destination IP
-	tSocketAddr.sa_data[3] = 235;	// Second Octet of destination IP
-	tSocketAddr.sa_data[4] = 79; 	// Third Octet of destination IP
-	tSocketAddr.sa_data[5] = 249;	// Fourth Octet of destination IP
+	tSocketAddr.sa_data[2] = 10;	// First Octet of destination IP
+	tSocketAddr.sa_data[3] = 105;	// Second Octet of destination IP
+	tSocketAddr.sa_data[4] = 5; 	// Third Octet of destination IP
+	tSocketAddr.sa_data[5] = 244;	// Fourth Octet of destination IP
 
 	retVal = connect(sparkSocket, &tSocketAddr, sizeof(tSocketAddr));
 
@@ -206,7 +218,11 @@ int Spark_Connect(void)
 	}
 	else
 	{
-		retVal = Spark_Send_Device_Message(sparkSocket, (char *)Device_Secret, NULL, NULL);
+		//retVal = Spark_Send_Device_Message(sparkSocket, (char *)Device_Secret, NULL, NULL);
+		//Do_Spark_Handshake(sparkSocket);
+		SPARK_DEVICE_ACKED = 1;
+		SPARK_DEVICE_HANDSHAKING = 1;
+		retVal = 1;
 	}
 
     return retVal;
@@ -224,6 +240,61 @@ int Spark_Disconnect(void)
     return retVal;
 }
 
+//static int Do_Spark_Handshake(long socket) {
+//	
+//	
+//		//read nonce (exactly 40 bytes)
+//		unsigned char nonce[40] = {
+//			  1, 1, 1, 1, 1, 1, 1, 1,
+//			  1, 1, 1, 1, 1, 1, 1, 1,
+//			  1, 1, 1, 1, 1, 1, 1, 1,
+//			  1, 1, 1, 1, 1, 1, 1, 1,
+//			  1, 1, 1, 1, 1, 1, 1, 1 };
+//
+//		//READNEXT40
+//
+//		//-------------------------------
+//		//send coreid
+//	
+//		unsigned char id[12];
+//		unsigned char ciphertext[256];		
+//		unsigned char pubkey[EXTERNAL_FLASH_SERVER_PUBLIC_KEY_LENGTH];
+//
+//		//read in the core id, from... place?
+//		memcpy(id, (void *)0x01fff7e8, 12);
+//
+//		//read in the server public key...
+//		FLASH_Read_ServerPublicKey(pubkey);
+//
+//		//clear our ciphertext buffer
+//		memset(ciphertext, 0, 256);
+//
+//		//create the public-key encrypted chunk to send serverside.
+//		int err = ciphertext_from_nonce_and_id(nonce, id, pubkey, ciphertext);
+//		if (err != 0) {
+//			return -1;
+//		}
+//
+//		//send it up.
+//		Spark_Send_Device_Message(socket, (char *)ciphertext, NULL, NULL);
+//
+//		//-------------------------------
+//		// read session key
+//		// READNEXT256
+//		//...
+//
+//		
+//
+//
+//
+//
+//		//read sessionkey
+//		//send hello
+//		//get hello
+//
+//		return 0;
+//}
+
 // receive from socket until we either find a newline or fill the buffer
 // called repeatedly from an interrupt handler, so DO NOT BLOCK
 // returns: -1 on error, signifying socket disconnected
@@ -240,7 +311,9 @@ int receive_line()
     FD_ZERO(&readSet);
     FD_SET(sparkSocket, &readSet);
 
-    int buffer_bytes_available = SPARK_BUF_LEN - 1 - total_bytes_received;
+	
+	const int bufferLength = ( spark_expected_message_length != 0 ) ? spark_expected_message_length : SPARK_BUF_LEN;
+    int buffer_bytes_available = bufferLength - 1 - total_bytes_received;
     char *newline = NULL;
 
     // tell select to timeout after 500 microseconds
@@ -276,6 +349,16 @@ int receive_line()
     	return retVal;
     }
 }
+
+
+///
+///Tell receive_line to stop when we get a certain # of bytes.
+void receive_chunk(int size) {
+	spark_expected_message_length = size;
+}
+
+
+
 
 // process the contents of recvBuff
 // returns number of bytes transmitted or -1 on error
@@ -361,7 +444,6 @@ int process_command()
 	{
 		bytes_sent = 0;
 	}
-
 	else
 	{
 		bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)Device_Fail, (char *)recvBuff, NULL);
@@ -379,6 +461,8 @@ int Spark_Process_API_Response(void)
 
 	return retVal;
 }
+
+
 
 bool userVarSchedule(const char *varKey, unsigned char token)
 {
@@ -523,7 +607,7 @@ static void handle_message(void)
 }
 
 // returns number of bytes transmitted or -1 on error
-static int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue)
+int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue)
 {
     char cmdBuf[SPARK_BUF_LEN];
     int sendLen = 0;
@@ -607,7 +691,7 @@ static uint8_t atoc(char data)
 	{
 		if (data == 'a')
 		{
-			ucRes = 0x0a;;
+			ucRes = 0x0a;
 		}
 		else if (data == 'b')
 		{
@@ -632,6 +716,57 @@ static uint8_t atoc(char data)
 	}
 	return ucRes;
 }
+
+void Spark_Handshake_Next(void) {
+	HandshakeStage++;// = HandshakeStage + 1;
+}
+
+unsigned char nonce[40];
+unsigned char sessionkey[512];
+
+
+int Spark_Continue_Handshake(void) {
+
+	int retVal = receive_line();
+
+	switch(HandshakeStage) {
+		case READ_NONCE:
+			if (retVal == 40) {
+				memcpy(handshake_nonce, recvBuff, 40);
+			}
+			else {
+				//keep waiting.
+				receive_chunk(40);
+			}
+			break;
+		case SEND_COREID:
+
+			break;
+		case READ_SESSIONKEY:			
+			if (retVal == 512) {
+
+			}
+			else {
+				//keep waiting.
+				receive_chunk(512);
+			}
+
+			break;
+		case SEND_HELLO:
+
+			break;
+		case GET_HELLO:
+
+			break;
+		case DONE:
+		default:
+			SPARK_DEVICE_HANDSHAKING = 0;
+			break;
+	}
+
+	return 0;
+}
+
 
 /*
 // Convert 2 nibbles in ASCII into a short number
