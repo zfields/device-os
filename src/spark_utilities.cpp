@@ -4,13 +4,15 @@
 #include "netapp.h"
 #include "string.h"
 #include <stdarg.h>
-//#include "handshake.h"
+#include "handshake.h"
+#include "spark_protocol.h"
+//#include "spark_wiring.h"
 
 long sparkSocket;
 sockaddr tSocketAddr;
 
 timeval timeout;
-fd_set readSet;
+_types_fd_set_cc3000 readSet;
 
 // Spark Messages
 const char Device_Secret[] = "secret";
@@ -28,8 +30,8 @@ char High_Dx[] = "HIGH D ";
 char Low_Dx[] = "LOW D ";
 
 char digits[] = "0123456789";
+char recvBuff[SPARK_BUF_LEN];		//TODO: make me an unsigned char array
 
-char recvBuff[SPARK_BUF_LEN];
 int total_bytes_received = 0;
 int spark_expected_message_length = 0;
 
@@ -39,12 +41,14 @@ char msgBuff[SPARK_BUF_LEN];
 int User_Var_Count;
 int User_Func_Count;
 
+//---------------------
 
-typedef enum
-{
-	READ_NONCE = 0, SEND_COREID, READ_SESSIONKEY, SEND_HELLO, GET_HELLO, DONE
-} Spark_Handshake_TypeDef;
-Spark_Handshake_TypeDef HandshakeStage = READ_NONCE;
+Handshake_Stage_Type HandshakeStage = READ_NONCE;
+
+SparkProtocol spark_protocol;
+
+//---------------------
+
 
 struct User_Var_Lookup_Table_t
 {
@@ -240,60 +244,6 @@ int Spark_Disconnect(void)
     return retVal;
 }
 
-//static int Do_Spark_Handshake(long socket) {
-//	
-//	
-//		//read nonce (exactly 40 bytes)
-//		unsigned char nonce[40] = {
-//			  1, 1, 1, 1, 1, 1, 1, 1,
-//			  1, 1, 1, 1, 1, 1, 1, 1,
-//			  1, 1, 1, 1, 1, 1, 1, 1,
-//			  1, 1, 1, 1, 1, 1, 1, 1,
-//			  1, 1, 1, 1, 1, 1, 1, 1 };
-//
-//		//READNEXT40
-//
-//		//-------------------------------
-//		//send coreid
-//	
-//		unsigned char id[12];
-//		unsigned char ciphertext[256];		
-//		unsigned char pubkey[EXTERNAL_FLASH_SERVER_PUBLIC_KEY_LENGTH];
-//
-//		//read in the core id, from... place?
-//		memcpy(id, (void *)0x01fff7e8, 12);
-//
-//		//read in the server public key...
-//		FLASH_Read_ServerPublicKey(pubkey);
-//
-//		//clear our ciphertext buffer
-//		memset(ciphertext, 0, 256);
-//
-//		//create the public-key encrypted chunk to send serverside.
-//		int err = ciphertext_from_nonce_and_id(nonce, id, pubkey, ciphertext);
-//		if (err != 0) {
-//			return -1;
-//		}
-//
-//		//send it up.
-//		Spark_Send_Device_Message(socket, (char *)ciphertext, NULL, NULL);
-//
-//		//-------------------------------
-//		// read session key
-//		// READNEXT256
-//		//...
-//
-//		
-//
-//
-//
-//
-//		//read sessionkey
-//		//send hello
-//		//get hello
-//
-//		return 0;
-//}
 
 // receive from socket until we either find a newline or fill the buffer
 // called repeatedly from an interrupt handler, so DO NOT BLOCK
@@ -347,15 +297,16 @@ int receive_line()
     	int retVal = total_bytes_received;
     	total_bytes_received = 0;
     	return retVal;
-    }
+	}
 }
 
 
-///
-///Tell receive_line to stop when we get a certain # of bytes.
+//
+// Tell receive_line to stop when we get a certain # of bytes.
 void receive_chunk(int size) {
 	spark_expected_message_length = size;
 }
+
 
 
 
@@ -718,11 +669,31 @@ static uint8_t atoc(char data)
 }
 
 void Spark_Handshake_Next(void) {
-	HandshakeStage++;// = HandshakeStage + 1;
+	HandshakeStage = (Handshake_Stage_Type)(((int)HandshakeStage) + 1);
 }
 
-unsigned char nonce[40];
+//DEBUG - read this in eventually
+unsigned char handshake_nonce[40] = {
+			  1, 1, 1, 1, 1, 1, 1, 1,
+			  1, 1, 1, 1, 1, 1, 1, 1,
+			  1, 1, 1, 1, 1, 1, 1, 1,
+			  1, 1, 1, 1, 1, 1, 1, 1,
+			  1, 1, 1, 1, 1, 1, 1, 1
+};
+unsigned char core_id[12];
 unsigned char sessionkey[512];
+unsigned char server_pubkey[EXTERNAL_FLASH_SERVER_PUBLIC_KEY_LENGTH];
+
+// returns number of bytes transmitted or -1 on error
+int Spark_Send_Message(long socket, const void *buffer, int bufferLength)
+{
+	unsigned char lenBuf[2];
+	lenBuf[0] = bufferLength >> 8;
+	lenBuf[1] = bufferLength & 255;
+	send(socket, lenBuf, 2, 0);
+
+	return send(socket, buffer, bufferLength, 0);
+}
 
 
 int Spark_Continue_Handshake(void) {
@@ -731,41 +702,112 @@ int Spark_Continue_Handshake(void) {
 
 	switch(HandshakeStage) {
 		case READ_NONCE:
-			if (retVal == 40) {
-				memcpy(handshake_nonce, recvBuff, 40);
-			}
-			else {
-				//keep waiting.
-				receive_chunk(40);
+			{
+				if (retVal == 40) {
+					memcpy(handshake_nonce, recvBuff, 40);
+					receive_chunk(0);
+					Spark_Handshake_Next();
+				}
+				else {
+					//keep waiting.
+					receive_chunk(40);
+				}
 			}
 			break;
 		case SEND_COREID:
+			{
+				//clear our ciphertext buffer
+				unsigned char ciphertext[256];
+				memset(ciphertext, 0, 256);
 
+				//read in the server public key...
+				FLASH_Read_ServerPublicKey(server_pubkey);
+
+				//create the ciphertext
+				int err = ciphertext_from_nonce_and_id(handshake_nonce, core_id, server_pubkey, ciphertext);
+				if (err != 0) {
+					//Serial.println("Spark 6");
+					return -1;
+				}
+
+				send(sparkSocket, ciphertext, 256, 0);
+				//Serial.println("Spark 7");
+
+				Spark_Handshake_Next();
+			}
 			break;
-		case READ_SESSIONKEY:			
-			if (retVal == 512) {
+		case READ_SESSIONKEY:
+			{
+				if (retVal == 512) {
+				
+					//uint8_t session_key[40];
 
-			}
-			else {
-				//keep waiting.
-				receive_chunk(512);
-			}
 
+					unsigned char core_privkey[EXTERNAL_FLASH_CORE_PRIVATE_KEY_LENGTH];
+					FLASH_Read_CorePrivateKey(core_privkey);
+
+		
+					unsigned char ciphertext[256];
+					unsigned char signature[256];
+					memcpy(ciphertext, recvBuff, 256);
+					memcpy(signature, recvBuff+256, 256);
+					spark_protocol.init(core_privkey, server_pubkey, ciphertext, signature);
+
+					receive_chunk(0);
+					Spark_Handshake_Next();
+				}
+				else {
+					//keep waiting.
+					receive_chunk(512);
+				}
+			}
 			break;
 		case SEND_HELLO:
+			{
+				int msgLength = 16;
+				unsigned char ciphertext[msgLength];
+				spark_protocol.hello(ciphertext);		//TODO: how long is this message?
+			
+				Spark_Send_Message(sparkSocket, ciphertext, msgLength);
 
+				receive_chunk(0);
+				Spark_Handshake_Next();
+			}
 			break;
 		case GET_HELLO:
+			{
+				//we should start receiving messages normally
 
+				//at this point receive_line should be giving us length-prefixed chunks of the correct sizes
+				if (retVal > 0) {				
+					CoAPMessageType::Enum message_type;
+
+					unsigned char ciphertext[retVal];
+					memcpy(ciphertext, recvBuff, retVal);					
+					message_type = spark_protocol.received_message(ciphertext, retVal);
+
+					if (CoAPMessageType::HELLO == message_type) {
+
+						//UM... in theory we should be reading the server's message id, and verifying messages using that?
+						//maybe that doesn't matter on the core?
+
+						Spark_Handshake_Next();
+					}
+				}
+			}
 			break;
 		case DONE:
 		default:
-			SPARK_DEVICE_HANDSHAKING = 0;
+			{
+				SPARK_DEVICE_HANDSHAKING = 0;
+			}
 			break;
 	}
 
 	return 0;
 }
+
+
 
 
 /*
