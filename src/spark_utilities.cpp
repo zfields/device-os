@@ -1,4 +1,3 @@
-
 #include "spark_utilities.h"
 #include "socket.h"
 #include "netapp.h"
@@ -6,7 +5,6 @@
 #include <stdarg.h>
 #include "handshake.h"
 #include "spark_protocol.h"
-//#include "spark_wiring.h"
 
 long sparkSocket;
 sockaddr tSocketAddr;
@@ -266,55 +264,53 @@ int Spark_Disconnect(void)
 //          the number of bytes received when we have received a full line
 int receive_line()
 {
-	if (0 == total_bytes_received)
-	{
-		memset(recvBuff, 0, SPARK_BUF_LEN);
-	}
+  if (0 == total_bytes_received)
+  {
+    memset(recvBuff, 0, SPARK_BUF_LEN);
+  }
 
-    // reset the fd_set structure
-    FD_ZERO(&readSet);
-    FD_SET(sparkSocket, &readSet);
+  // reset the fd_set structure
+  FD_ZERO(&readSet);
+  FD_SET(sparkSocket, &readSet);
 
-	
-	const int bufferLength = ( spark_expected_message_length != 0 ) ? spark_expected_message_length : SPARK_BUF_LEN;
-    int buffer_bytes_available = bufferLength - 1 - total_bytes_received;
-    char *newline = NULL;
+  const int bufferLength = ( spark_expected_message_length != 0 ) ? spark_expected_message_length : SPARK_BUF_LEN;
+  int buffer_bytes_available = bufferLength - 1 - total_bytes_received;
+  char *newline = NULL;
 
-    // tell select to timeout after 500 microseconds
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 500;
+  // tell select to timeout after 500 microseconds
+  timeout.tv_sec = 0;
+  timeout.tv_usec = 500;
 
-	int num_fds_ready = select(sparkSocket+1, &readSet, NULL, NULL, &timeout);
+  int num_fds_ready = select(sparkSocket + 1, &readSet, NULL, NULL, &timeout);
 
-	if (0 < num_fds_ready)
-	{
-		if (FD_ISSET(sparkSocket, &readSet))
-		{
-			char *buffer_ptr = recvBuff + total_bytes_received;
-
-			int bytes_received_once = recv(sparkSocket, buffer_ptr, buffer_bytes_available, 0);
-
-			if (0 > bytes_received_once)
-				return bytes_received_once;
-
-			total_bytes_received += bytes_received_once;
-			newline = strchr(recvBuff, '\n');
-		}
-	}
-
-    if (NULL == newline && 0 < buffer_bytes_available)
+  if (0 < num_fds_ready)
+  {
+    if (FD_ISSET(sparkSocket, &readSet))
     {
-    	return 0;
+      char *buffer_ptr = recvBuff + total_bytes_received;
+
+      int bytes_received_once = recv(sparkSocket, buffer_ptr, buffer_bytes_available, 0);
+
+      if (0 > bytes_received_once)
+        return bytes_received_once;
+
+      total_bytes_received += bytes_received_once;
+      newline = strchr(recvBuff, '\n');
     }
-    else
-    {
-    	int retVal = total_bytes_received;
-    	total_bytes_received = 0;
-    	return retVal;
-	}
+  }
+
+  if (NULL == newline && 0 < buffer_bytes_available)
+  {
+    return 0;
+  }
+  else
+  {
+    int retVal = total_bytes_received;
+    total_bytes_received = 0;
+    return retVal;
+  }
 }
 
-//
 // Tell receive_line to stop when we get a certain # of bytes.
 void receive_chunk(int size) {
 	spark_expected_message_length = size;
@@ -816,14 +812,14 @@ int Spark_Continue_Handshake(void) {
 		case READ_SESSIONKEY:
 			{
 				if (retVal == 512) {
-				
+
 					//uint8_t session_key[40];
 
 
 					unsigned char core_privkey[EXTERNAL_FLASH_CORE_PRIVATE_KEY_LENGTH];
 					FLASH_Read_CorePrivateKey(core_privkey);
 
-		
+
 					unsigned char ciphertext[256];
 					unsigned char signature[256];
 					memcpy(ciphertext, recvBuff, 256);
@@ -844,7 +840,7 @@ int Spark_Continue_Handshake(void) {
 				int msgLength = 16;
 				unsigned char ciphertext[msgLength];
 				spark_protocol.hello(ciphertext);		//TODO: how long is this message?
-			
+
 				Spark_Send_Message(sparkSocket, ciphertext, msgLength);
 
 				receive_chunk(0);
@@ -856,11 +852,11 @@ int Spark_Continue_Handshake(void) {
 				//we should start receiving messages normally
 
 				//at this point receive_line should be giving us length-prefixed chunks of the correct sizes
-				if (retVal > 0) {				
+				if (retVal > 0) {
 					CoAPMessageType::Enum message_type;
 
 					unsigned char ciphertext[retVal];
-					memcpy(ciphertext, recvBuff, retVal);					
+					memcpy(ciphertext, recvBuff, retVal);
 					message_type = spark_protocol.received_message(ciphertext, retVal);
 
 					if (CoAPMessageType::HELLO == message_type) {
