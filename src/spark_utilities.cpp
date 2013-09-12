@@ -257,58 +257,37 @@ int Spark_Disconnect(void)
 }
 
 
-// receive from socket until we either find a newline or fill the buffer
 // called repeatedly from an interrupt handler, so DO NOT BLOCK
-// returns: -1 on error, signifying socket disconnected
-//          0 if we have not yet received a full line
-//          the number of bytes received when we have received a full line
-int receive_line()
+// returns: number of bytes received
+//          -1 on error, signifying socket disconnected
+int receive()
 {
-  if (0 == total_bytes_received)
-  {
-    memset(recvBuff, 0, SPARK_BUF_LEN);
-  }
-
   // reset the fd_set structure
   FD_ZERO(&readSet);
   FD_SET(sparkSocket, &readSet);
-
-  const int bufferLength = ( spark_expected_message_length != 0 ) ? spark_expected_message_length : SPARK_BUF_LEN;
-  int buffer_bytes_available = bufferLength - 1 - total_bytes_received;
-  char *newline = NULL;
 
   // tell select to timeout after 500 microseconds
   timeout.tv_sec = 0;
   timeout.tv_usec = 500;
 
+  int bytes_received = 0;
   int num_fds_ready = select(sparkSocket + 1, &readSet, NULL, NULL, &timeout);
 
   if (0 < num_fds_ready)
   {
     if (FD_ISSET(sparkSocket, &readSet))
     {
-      char *buffer_ptr = recvBuff + total_bytes_received;
-
-      int bytes_received_once = recv(sparkSocket, buffer_ptr, buffer_bytes_available, 0);
-
-      if (0 > bytes_received_once)
-        return bytes_received_once;
-
-      total_bytes_received += bytes_received_once;
-      newline = strchr(recvBuff, '\n');
+      bytes_received = recv(sparkSocket, recvBuff, SPARK_BUF_LEN, 0);
+      if (0 > bytes_received)
+        return bytes_received;
+      
+      int bytes_pushed = spark_protocol.queue_push(recvBuff, bytes_received);
+      if (bytes_pushed != bytes_received)
+        return -2; // TODO queue not big enough or not being popped fast enough
     }
   }
 
-  if (NULL == newline && 0 < buffer_bytes_available)
-  {
-    return 0;
-  }
-  else
-  {
-    int retVal = total_bytes_received;
-    total_bytes_received = 0;
-    return retVal;
-  }
+  return bytes_received;
 }
 
 // Tell receive_line to stop when we get a certain # of bytes.
@@ -740,22 +719,6 @@ static uint8_t atoc(char data)
 	}
 	return ucRes;
 }
-
-void Spark_Handshake_Next(void) {
-	HandshakeStage = (Handshake_Stage_Type)(((int)HandshakeStage) + 1);
-}
-
-//DEBUG - read this in eventually
-unsigned char handshake_nonce[40] = {
-			  1, 1, 1, 1, 1, 1, 1, 1,
-			  1, 1, 1, 1, 1, 1, 1, 1,
-			  1, 1, 1, 1, 1, 1, 1, 1,
-			  1, 1, 1, 1, 1, 1, 1, 1,
-			  1, 1, 1, 1, 1, 1, 1, 1
-};
-unsigned char core_id[12];
-unsigned char sessionkey[512];
-unsigned char server_pubkey[EXTERNAL_FLASH_SERVER_PUBLIC_KEY_LENGTH];
 
 // returns number of bytes transmitted or -1 on error
 int Spark_Send_Message(long socket, const void *buffer, int bufferLength)
