@@ -57,13 +57,8 @@ void userVarReturn(void);
 bool userFuncSchedule(const char *funcKey, unsigned char token, const char *paramString);
 void userFuncExecute(void);
 
-void sendMessage(char *message);
-
 //let the core know we're expecting a certain size message.
 void receive_chunk(int size);
-
-int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue);
-//void sendMessageWithData(char *message, char *data, long size);
 
 //void handleMessage(void) __attribute__ ((weak, alias ("Default_Handler")));
 char handleMessage(char *user_arg) __attribute__ ((weak));

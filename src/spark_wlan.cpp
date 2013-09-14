@@ -31,6 +31,11 @@ unsigned char _auth = WLAN_SEC_WPA2;
 
 unsigned char NVMEM_Spark_File_Data[NVMEM_SPARK_FILE_SIZE];
 
+/***** Used by receive() *****/
+_types_fd_set_cc3000 readSet;
+long sparkSocket;
+
+
 __IO uint8_t SPARK_WLAN_SLEEP;
 __IO uint8_t SPARK_WLAN_STARTED;
 __IO uint8_t SPARK_SOCKET_CONNECTED;
@@ -38,7 +43,6 @@ __IO uint8_t SPARK_DEVICE_HANDSHAKING;
 __IO uint8_t SPARK_SOCKET_ALIVE;
 __IO uint8_t SPARK_DEVICE_ACKED;
 __IO uint8_t SPARK_FLASH_UPDATE;
-__IO uint8_t SPARK_LED_TOGGLE;
 __IO uint8_t SPARK_LED_FADE;
 
 __IO uint8_t Spark_Connect_Count;
@@ -84,7 +88,6 @@ void Start_Smart_Config(void)
 	SPARK_SOCKET_ALIVE = 0;
 	SPARK_DEVICE_ACKED = 0;
 	SPARK_FLASH_UPDATE = 0;
-	SPARK_LED_TOGGLE = 0;
 	SPARK_LED_FADE = 0;
 	Spark_Connect_Count = 0;
 
@@ -128,7 +131,7 @@ void Start_Smart_Config(void)
 #elif defined (USE_SPARK_CORE_V02)
 		LED_Toggle(LED_RGB);
 #endif
-		Delay(100);
+		Delay(250);
 	}
 
 #if defined (USE_SPARK_CORE_V01)
@@ -165,8 +168,6 @@ void Start_Smart_Config(void)
 	/* Reset the CC3000 */
 	wlan_stop();
 
-	WLAN_SMART_CONFIG_START = 0;
-
 	Delay(100);
 
 	wlan_start(0);
@@ -177,15 +178,16 @@ void Start_Smart_Config(void)
 	wlan_set_event_mask(HCI_EVNT_WLAN_KEEPALIVE | HCI_EVNT_WLAN_UNSOL_INIT | HCI_EVNT_WLAN_ASYNC_PING_REPORT);
 
 #if defined (USE_SPARK_CORE_V02)
-    LED_SetRGBColor(RGB_COLOR_GREEN);
-	LED_On(LED_RGB);
-	SPARK_LED_TOGGLE = 1;
+  LED_SetRGBColor(RGB_COLOR_GREEN);
+  LED_On(LED_RGB);
 #endif
 
 	TimingSparkProcessAPI = 0;
 	TimingSparkAliveTimeout = 0;
 	TimingSparkResetTimeout = 0;
 	TimingSparkOTATimeout = 0;
+
+  WLAN_SMART_CONFIG_START = 0;
 }
 
 /* WLAN Application related callbacks passed to wlan_init */
@@ -230,7 +232,6 @@ void WLAN_Async_Callback(long lEventType, char *data, unsigned char length)
 			SPARK_SOCKET_ALIVE = 0;
 			SPARK_DEVICE_ACKED = 0;
 			SPARK_FLASH_UPDATE = 0;
-			SPARK_LED_TOGGLE = 1;
 			SPARK_LED_FADE = 0;
 			Spark_Connect_Count = 0;
 			break;
@@ -316,9 +317,12 @@ void SPARK_WLAN_Setup(void)
 		Save_SystemFlags();
 	}
 
+#if defined (USE_SPARK_CORE_V02)
+  // Sample code to display last captured error count
+  // TODO Sending error count to server
+
 	Spark_Error_Count = NVMEM_Spark_File_Data[ERROR_COUNT_FILE_OFFSET];
 
-#if defined (USE_SPARK_CORE_V02)
 	if(Spark_Error_Count)
 	{
 		LED_SetRGBColor(RGB_COLOR_RED);
@@ -326,12 +330,15 @@ void SPARK_WLAN_Setup(void)
 
 		while(Spark_Error_Count != 0)
 		{
+			Delay(250);
 			LED_Toggle(LED_RGB);
 			Spark_Error_Count--;
-			Delay(250);
 		}
 
-		NVMEM_Spark_File_Data[ERROR_COUNT_FILE_OFFSET] = 0;
+    LED_SetRGBColor(RGB_COLOR_WHITE);
+    LED_On(LED_RGB);
+
+		NVMEM_Spark_File_Data[ERROR_COUNT_FILE_OFFSET] = Spark_Error_Count;
 		nvmem_write(NVMEM_SPARK_FILE_ID, 1, ERROR_COUNT_FILE_OFFSET, &NVMEM_Spark_File_Data[ERROR_COUNT_FILE_OFFSET]);
 	}
 #endif
@@ -358,6 +365,14 @@ void SPARK_WLAN_Setup(void)
 		}
 	}
 
+#if defined (USE_SPARK_CORE_V02)
+  if (WLAN_MANUAL_CONNECT || !WLAN_SMART_CONFIG_START)
+  {
+    LED_SetRGBColor(RGB_COLOR_GREEN);
+    LED_On(LED_RGB);
+  }
+#endif
+
 	nvmem_read_sp_version(patchVer);
 	if (patchVer[1] == 19)
 	{
@@ -366,15 +381,6 @@ void SPARK_WLAN_Setup(void)
 	}
 
 	Clear_NetApp_Dhcp();
-
-#if defined (USE_SPARK_CORE_V02)
-	if(WLAN_MANUAL_CONNECT || !WLAN_SMART_CONFIG_START)
-	{
-		LED_SetRGBColor(RGB_COLOR_GREEN);
-		LED_On(LED_RGB);
-		SPARK_LED_TOGGLE = 1;
-	}
-#endif
 }
 
 void SPARK_WLAN_Loop(void)
@@ -399,7 +405,6 @@ void SPARK_WLAN_Loop(void)
 			SPARK_SOCKET_ALIVE = 0;
 			SPARK_DEVICE_ACKED = 0;
 			SPARK_FLASH_UPDATE = 0;
-			SPARK_LED_TOGGLE = 1;
 			SPARK_LED_FADE = 0;
 			Spark_Connect_Count = 0;
 		}
@@ -429,30 +434,10 @@ void SPARK_WLAN_Loop(void)
 	    wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
 	    /* Edit the below line before use*/
 	    //wlan_connect(WLAN_SEC_WPA2, "Tomato24", 8, NULL, "", 0);
-      wlan_connect(WLAN_SEC_UNSEC, "Tomato24", 8, NULL, "", 0);
+      wlan_connect(WLAN_SEC_UNSEC, (char *)"Tomato24", 8, NULL, (unsigned char *)"", 0);
 		
 	    WLAN_MANUAL_CONNECT = 0;
 	}
-
-#if defined (USE_SPARK_CORE_V02)
-	if(Spark_Error_Count)
-	{
-		SPARK_LED_TOGGLE = 0;
-		LED_SetRGBColor(RGB_COLOR_RED);
-		LED_On(LED_RGB);
-
-		while(Spark_Error_Count != 0)
-		{
-			LED_Toggle(LED_RGB);
-			Spark_Error_Count--;
-			Delay(250);
-		}
-
-		LED_SetRGBColor(RGB_COLOR_GREEN);
-		LED_On(LED_RGB);
-		SPARK_LED_TOGGLE = 1;
-	}
-#endif
 
 	// Complete Smart Config Process:
 	// 1. if smart config is done
@@ -478,7 +463,6 @@ void SPARK_WLAN_Loop(void)
 #if defined (USE_SPARK_CORE_V02)
 		LED_SetRGBColor(RGB_COLOR_CYAN);
 		LED_On(LED_RGB);
-		SPARK_LED_TOGGLE = 1;
 #endif
 
 		Spark_Connect_Count++;
@@ -489,6 +473,41 @@ void SPARK_WLAN_Loop(void)
 			SPARK_SOCKET_CONNECTED = 1;
 	}
 }
+
+
+// called repeatedly from an interrupt handler, so DO NOT BLOCK
+// returns: number of bytes received
+//          -1 on error, signifying socket disconnected
+int receive()
+{
+  // reset the fd_set structure
+  FD_ZERO(&readSet);
+  FD_SET(sparkSocket, &readSet);
+
+  // tell select to timeout after 500 microseconds
+  timeout.tv_sec = 0;
+  timeout.tv_usec = 500;
+
+  int bytes_received = 0;
+  int num_fds_ready = select(sparkSocket + 1, &readSet, NULL, NULL, &timeout);
+
+  if (0 < num_fds_ready)
+  {
+    if (FD_ISSET(sparkSocket, &readSet))
+    {
+      bytes_received = recv(sparkSocket, recvBuff, SPARK_BUF_LEN, 0);
+      if (0 > bytes_received)
+        return bytes_received;
+      
+      int bytes_pushed = spark_protocol.queue_push(recvBuff, bytes_received);
+      if (bytes_pushed != bytes_received)
+        return -2; // TODO queue not big enough or not being popped fast enough
+    }
+  }
+
+  return bytes_received;
+}
+
 
 void SPARK_WLAN_Timing(void)
 {
@@ -554,7 +573,7 @@ void SPARK_WLAN_Timing(void)
       }
       else
       {
-        if (Spark_Process_API_Response() < 0)
+        if (receive() < 0)
           SPARK_SOCKET_ALIVE = 0;
       }
 

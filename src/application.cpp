@@ -175,9 +175,6 @@ static int Do_Spark_Handshake(long socket) {
 
 		Serial.println("Spark 7");
 
-		//send it up.
-		Spark_Send_Device_Message(socket, (char *)ciphertext, NULL, NULL);
-
 		Serial.println("Spark 8");
 		Serial.println("Spark 9");
 		Serial.println("Spark 10");

@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "netapp.h"
 #include "security.h"
+#include "spark_utilities.h"
 
 /* CC3000 EEPROM - Spark File Data Storage */
 #define NVMEM_SPARK_FILE_ID			14	//Do not change this ID
@@ -41,10 +42,6 @@ void SPARK_WLAN_Loop(void);
 void SPARK_WLAN_Timing(void);
 
 /* Spark Cloud APIs */
-extern int Spark_Connect(void);
-extern int Spark_Disconnect(void);
-extern int Spark_Process_API_Response(void);
-
 extern __IO uint32_t TimingSparkAliveTimeout;
 extern __IO uint32_t TimingSparkOTATimeout;
 
@@ -53,9 +50,10 @@ extern __IO uint8_t SPARK_SOCKET_CONNECTED;
 extern __IO uint8_t SPARK_DEVICE_HANDSHAKING;
 extern __IO uint8_t SPARK_DEVICE_ACKED;
 extern __IO uint8_t SPARK_FLASH_UPDATE;
-extern __IO uint8_t SPARK_LED_TOGGLE;
 extern __IO uint8_t SPARK_LED_FADE;
 
 extern uint8_t WLAN_SMART_CONFIG_START;
+
+extern __IO uint8_t Spark_Error_Count;
 
 #endif  /*__SPARK_WLAN_H*/

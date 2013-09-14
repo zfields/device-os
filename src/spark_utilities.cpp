@@ -1,43 +1,20 @@
 #include "spark_utilities.h"
-#include "socket.h"
-#include "netapp.h"
+//#include "socket.h"
+//#include "netapp.h"
 #include "string.h"
 #include <stdarg.h>
 #include "handshake.h"
 #include "spark_protocol.h"
 
-long sparkSocket;
 sockaddr tSocketAddr;
 
 timeval timeout;
-_types_fd_set_cc3000 readSet;
 
-// Spark Messages
-const char Device_Secret[] = "secret";
 const char Device_Name[] = "sparkdemodevice";
-const char Device_Ok[] = "OK ";
-const char Device_Fail[] = "FAIL ";
-const char Device_IWDGRST[] = "IWDGRST";
-const char Device_CRLF[] = "\n";
-
-const char Flash_Update[] = "update";
-const char Flash_Begin[] = "flash begin";
-const char Flash_End[] = "flash end";
-const char Flash_NoFile[] = "flash no file";
-
-const char API_Alive[] = "alive";
-const char API_Who[] = "who";
-const char API_HandleMessage[] = "USERFUNC ";
-const char API_SendMessage[] = "CALLBACK ";
-const char API_Update[] = "UPDATE";
-
-char High_Dx[] = "HIGH D ";
-char Low_Dx[] = "LOW D ";
 
 char digits[] = "0123456789";
-char recvBuff[SPARK_BUF_LEN];		//TODO: make me an unsigned char array
+char recvBuff[SPARK_BUF_LEN];
 
-int total_bytes_received = 0;
 int spark_expected_message_length = 0;
 
 uint32_t chunkIndex;
@@ -48,13 +25,7 @@ char msgBuff[SPARK_BUF_LEN];
 int User_Var_Count;
 int User_Func_Count;
 
-//---------------------
-
-Handshake_Stage_Type HandshakeStage = READ_NONCE;
-
 SparkProtocol spark_protocol;
-
-//---------------------
 
 
 struct User_Var_Lookup_Table_t
@@ -76,23 +47,8 @@ struct User_Func_Lookup_Table_t
 	unsigned char token; //not sure we require this here
 } User_Func_Lookup_Table[USER_FUNC_MAX_COUNT];
 
-static int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue);
-static unsigned char itoa(int cNum, char *cString);
 static unsigned char uitoa(unsigned int cNum, char *cString);
 static unsigned int atoui(char *cString);
-static uint8_t atoc(char data);
-
-//static int Do_Spark_Handshake(long socket);
-
-/*
-static uint16_t atoshort(char b1, char b2);
-static unsigned char ascii_to_char(char b1, char b2);
-
-static void str_cpy(char dest[], char src[]);
-static int str_cmp(char str1[], char str2[]);
-static int str_len(char str[]);
-static void sub_str(char dest[], char src[], int offset, int len);
-*/
 
 Spark_Namespace Spark =
 {
@@ -230,7 +186,6 @@ int Spark_Connect(void)
 	}
 	else
 	{
-		//retVal = Spark_Send_Device_Message(sparkSocket, (char *)Device_Secret, NULL, NULL);
 		//Do_Spark_Handshake(sparkSocket);
 		SPARK_DEVICE_ACKED = 1;
 		SPARK_DEVICE_HANDSHAKING = 1;
@@ -250,40 +205,6 @@ int Spark_Disconnect(void)
     	sparkSocket = 0xFFFFFFFF;
 
     return retVal;
-}
-
-
-// called repeatedly from an interrupt handler, so DO NOT BLOCK
-// returns: number of bytes received
-//          -1 on error, signifying socket disconnected
-int receive()
-{
-  // reset the fd_set structure
-  FD_ZERO(&readSet);
-  FD_SET(sparkSocket, &readSet);
-
-  // tell select to timeout after 500 microseconds
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 500;
-
-  int bytes_received = 0;
-  int num_fds_ready = select(sparkSocket + 1, &readSet, NULL, NULL, &timeout);
-
-  if (0 < num_fds_ready)
-  {
-    if (FD_ISSET(sparkSocket, &readSet))
-    {
-      bytes_received = recv(sparkSocket, recvBuff, SPARK_BUF_LEN, 0);
-      if (0 > bytes_received)
-        return bytes_received;
-      
-      int bytes_pushed = spark_protocol.queue_push(recvBuff, bytes_received);
-      if (bytes_pushed != bytes_received)
-        return -2; // TODO queue not big enough or not being popped fast enough
-    }
-  }
-
-  return bytes_received;
 }
 
 // Tell receive_line to stop when we get a certain # of bytes.
@@ -322,124 +243,9 @@ void process_chunk(void)
 			FLASH_Update((uint8_t *)&recvBuff[chunkIndex], chunkBytesAvailable);
 		}
 		uitoa(computedCRCValue, CRCStr);
-		Spark_Send_Device_Message(sparkSocket, (char *)CRCStr, NULL, NULL);
+    // TODO Send CoAP Message
 	}
 }
-
-// process the contents of recvBuff
-// returns number of bytes transmitted or -1 on error
-int process_command()
-{
-	int bytes_sent = 0;
-
-	// who
-	if (0 == strncmp(recvBuff, API_Who, strlen(API_Who)))
-	{
-		bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)Device_Name, NULL, NULL);
-	}
-
-	// API alive signal received and acknowledged by core, reset alive timeout
-	else if (0 == strncmp(recvBuff, API_Alive, strlen(API_Alive)))
-	{
-		if(!SPARK_DEVICE_ACKED)
-		{
-			SPARK_DEVICE_ACKED = 1;//First alive received by Core means Server received Device ID
-		}
-		TimingSparkAliveTimeout = 0;
-
-		bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)API_Alive, NULL, NULL);
-	}
-
-	// command to trigger OTA firmware upgrade
-	else if (0 == strncmp(recvBuff, API_Update, strlen(API_Update)))
-	{
-		bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)Flash_Update, NULL, NULL);
-	}
-
-	// signal the MCU to reset and start the marvin application
-	else if (0 == strncmp(recvBuff, Flash_NoFile, strlen(Flash_NoFile)))
-	{
-		//FLASH_End();
-	}
-
-	// command to start download and flashing the firmware
-	else if (0 == strncmp(recvBuff, Flash_Begin, strlen(Flash_Begin)))
-	{
-		SPARK_FLASH_UPDATE = 1;
-		chunkIndex = strlen(Flash_Begin) + 1;//+1 for '\n'
-		FLASH_Begin(EXTERNAL_FLASH_OTA_ADDRESS);
-	}
-
-	// command to end the flashing process and reset the MCU
-	else if (0 == strncmp(recvBuff, Flash_End, strlen(Flash_End)))
-	{
-		SPARK_FLASH_UPDATE = 0;
-		FLASH_End();
-	}
-
-	if(SPARK_FLASH_UPDATE)
-	{
-		TimingSparkAliveTimeout = 0;
-		process_chunk();
-		chunkIndex = 0;
-	}
-
-	// command to set a pin high
-	else if (0 == strncmp(recvBuff, High_Dx, 6))
-	{
-		High_Dx[6] = recvBuff[6];
-
-		if (OK == DIO_SetState((DIO_TypeDef)atoc(High_Dx[6]), HIGH))
-			bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)Device_Ok, (char *)High_Dx, NULL);
-		else
-			bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)Device_Fail, (char *)High_Dx, NULL);
-	}
-
-	// command to set a pin low
-	else if (0 == strncmp(recvBuff, Low_Dx, 5))
-	{
-		Low_Dx[5] = recvBuff[5];
-
-		if (OK == DIO_SetState((DIO_TypeDef)atoc(Low_Dx[5]), LOW))
-			bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)Device_Ok, (char *)Low_Dx, NULL);
-		else
-			bytes_sent = Spark_Send_Device_Message(sparkSocket, (char *)Device_Fail, (char *)Low_Dx, NULL);
-	}
-
-	// command to call the user-defined function
-	else if (0 == strncmp(recvBuff, API_HandleMessage, strlen(API_HandleMessage)))
-	{
-		char *msg_arg = &recvBuff[strlen(API_HandleMessage)];
-		char *newline = strchr(msg_arg, '\n');
-		if (NULL != newline)
-		{
-			if ('\r' == *(newline - 1))
-				newline--;
-			*newline = '\0';
-		}
-
-	    memset(msgBuff, 0, SPARK_BUF_LEN);
-	    if(NULL != msg_arg)
-	    {
-	    	memcpy(msgBuff, msg_arg, strlen(msg_arg));
-	    }
-	    pHandleMessage = handle_message;
-	}
-
-	return bytes_sent;
-}
-
-int Spark_Process_API_Response(void)
-{
-	int retVal = receive_line();
-
-	if (0 < retVal)
-		retVal = process_command();
-
-	return retVal;
-}
-
-
 
 bool userVarSchedule(const char *varKey, unsigned char token)
 {
@@ -557,67 +363,6 @@ void userFuncExecute(void)
 	}
 }
 
-void sendMessage(char *message)
-{
-	Spark_Send_Device_Message(sparkSocket, (char *)API_SendMessage, (char *)message, NULL);
-}
-
-//void sendMessageWithData(char *message, char *data, long size)
-//{
-//	char lenStr[11];
-//	unsigned char len = uitoa(size, &lenStr[0]);
-//	lenStr[len] = '\0';
-//	Spark_Send_Device_Message(sparkSocket, (char *)API_SendMessage, (char *)message, (char *)lenStr);
-//}
-
-static void handle_message(void)
-{
-	if (NULL != handleMessage)
-	{
-		pHandleMessage = NULL;
-		char retStr[11];
-		int msgResult = handleMessage(msgBuff);
-		unsigned char retLen = uitoa(msgResult, retStr);
-		retStr[retLen] = '\0';
-		Spark_Send_Device_Message(sparkSocket, (char *)Device_Ok, (char *)API_HandleMessage, (char *)retStr);
-	}
-}
-
-// returns number of bytes transmitted or -1 on error
-int Spark_Send_Device_Message(long socket, char * cmd, char * cmdparam, char * cmdvalue)
-{
-    char cmdBuf[SPARK_BUF_LEN];
-    int sendLen = 0;
-    int retVal = 0;
-
-    memset(cmdBuf, 0, SPARK_BUF_LEN);
-
-    if(cmd != NULL)
-    {
-        sendLen = strlen(cmd);
-        memcpy(cmdBuf, cmd, strlen(cmd));
-    }
-
-    if(cmdparam != NULL)
-    {
-        memcpy(&cmdBuf[sendLen], cmdparam, strlen(cmdparam));
-        sendLen += strlen(cmdparam);
-    }
-
-    if(cmdvalue != NULL)
-    {
-        memcpy(&cmdBuf[sendLen], cmdvalue, strlen(cmdvalue));
-        sendLen += strlen(cmdvalue);
-    }
-
-    memcpy(&cmdBuf[sendLen], Device_CRLF, strlen(Device_CRLF));
-    sendLen += strlen(Device_CRLF);
-
-    retVal = send(socket, cmdBuf, sendLen, 0);
-
-    return retVal;
-}
-
 // Convert unsigned integer to ASCII in decimal base
 static unsigned char uitoa(unsigned int cNum, char *cString)
 {
@@ -670,45 +415,6 @@ static unsigned int atoui(char *cString)
 	return cNum;
 }
 
-//Convert nibble to hexdecimal from ASCII
-static uint8_t atoc(char data)
-{
-	unsigned char ucRes = 0;
-
-	if ((data >= 0x30) && (data <= 0x39))
-	{
-		ucRes = data - 0x30;
-	}
-	else
-	{
-		if (data == 'a')
-		{
-			ucRes = 0x0a;
-		}
-		else if (data == 'b')
-		{
-			ucRes = 0x0b;
-		}
-		else if (data == 'c')
-		{
-			ucRes = 0x0c;
-		}
-		else if (data == 'd')
-		{
-			ucRes = 0x0d;
-		}
-		else if (data == 'e')
-		{
-			ucRes = 0x0e;
-		}
-		else if (data == 'f')
-		{
-			ucRes = 0x0f;
-		}
-	}
-	return ucRes;
-}
-
 // returns number of bytes transmitted or -1 on error
 int Spark_Send_Message(long socket, const void *buffer, int bufferLength)
 {
@@ -719,176 +425,3 @@ int Spark_Send_Message(long socket, const void *buffer, int bufferLength)
 
 	return send(socket, buffer, bufferLength, 0);
 }
-
-
-int Spark_Continue_Handshake(void) {
-
-	int retVal = receive_line();
-
-	switch(HandshakeStage) {
-		case READ_NONCE:
-			{
-				if (retVal == 40) {
-					memcpy(handshake_nonce, recvBuff, 40);
-					receive_chunk(0);
-					Spark_Handshake_Next();
-				}
-				else {
-					//keep waiting.
-					receive_chunk(40);
-				}
-			}
-			break;
-		case SEND_COREID:
-			{
-				//clear our ciphertext buffer
-				unsigned char ciphertext[256];
-				memset(ciphertext, 0, 256);
-
-				//read in the server public key...
-				FLASH_Read_ServerPublicKey(server_pubkey);
-
-				//create the ciphertext
-				int err = ciphertext_from_nonce_and_id(handshake_nonce, core_id, server_pubkey, ciphertext);
-				if (err != 0) {
-					//Serial.println("Spark 6");
-					return -1;
-				}
-
-				send(sparkSocket, ciphertext, 256, 0);
-				//Serial.println("Spark 7");
-
-				Spark_Handshake_Next();
-			}
-			break;
-		case READ_SESSIONKEY:
-			{
-				if (retVal == 512) {
-
-					//uint8_t session_key[40];
-
-
-					unsigned char core_privkey[EXTERNAL_FLASH_CORE_PRIVATE_KEY_LENGTH];
-					FLASH_Read_CorePrivateKey(core_privkey);
-
-
-					unsigned char ciphertext[256];
-					unsigned char signature[256];
-					memcpy(ciphertext, recvBuff, 256);
-					memcpy(signature, recvBuff+256, 256);
-					spark_protocol.init(core_privkey, server_pubkey, ciphertext, signature);
-
-					receive_chunk(0);
-					Spark_Handshake_Next();
-				}
-				else {
-					//keep waiting.
-					receive_chunk(512);
-				}
-			}
-			break;
-		case SEND_HELLO:
-			{
-				int msgLength = 16;
-				unsigned char ciphertext[msgLength];
-				spark_protocol.hello(ciphertext);		//TODO: how long is this message?
-
-				Spark_Send_Message(sparkSocket, ciphertext, msgLength);
-
-				receive_chunk(0);
-				Spark_Handshake_Next();
-			}
-			break;
-		case GET_HELLO:
-			{
-				//we should start receiving messages normally
-
-				//at this point receive_line should be giving us length-prefixed chunks of the correct sizes
-				if (retVal > 0) {
-					CoAPMessageType::Enum message_type;
-
-					unsigned char ciphertext[retVal];
-					memcpy(ciphertext, recvBuff, retVal);
-					message_type = spark_protocol.received_message(ciphertext, retVal);
-
-					if (CoAPMessageType::HELLO == message_type) {
-
-						//UM... in theory we should be reading the server's message id, and verifying messages using that?
-						//maybe that doesn't matter on the core?
-
-						Spark_Handshake_Next();
-					}
-				}
-			}
-			break;
-		case DONE:
-		default:
-			{
-				SPARK_DEVICE_HANDSHAKING = 0;
-			}
-			break;
-	}
-
-	return 0;
-}
-
-
-
-
-/*
-// Convert 2 nibbles in ASCII into a short number
-static uint16_t atoshort(char b1, char b2)
-{
-	uint16_t usRes;
-	usRes = (atoc(b1)) * 16 | atoc(b2);
-	return usRes;
-}
-
-// Convert 2 bytes in ASCII into one character
-static unsigned char ascii_to_char(char b1, char b2)
-{
-	unsigned char ucRes;
-
-	ucRes = (atoc(b1)) << 4 | (atoc(b2));
-
-	return ucRes;
-}
-
-// Various String Functions
-static void str_cpy(char dest[], char src[])
-{
-	int i = 0;
-	for(i = 0; src[i] != '\0'; i++)
-		dest[i] = src[i];
-	dest[i] = '\0';
-}
-
-static int str_cmp(char str1[], char str2[])
-{
-	int i = 0;
-	while(1)
-	{
-		if(str1[i] != str2[i])
-			return str1[i] - str2[i];
-		if(str1[i] == '\0' || str2[i] == '\0')
-			return 0;
-		i++;
-	}
-}
-
-static int str_len(char str[])
-{
-	int i;
-	for(i = 0; str[i] != '\0'; i++);
-	return i;
-}
-
-static void sub_str(char dest[], char src[], int offset, int len)
-{
-	int i;
-	for(i = 0; i < len && src[offset + i] != '\0'; i++)
-		dest[i] = src[i + offset];
-	dest[i] = '\0';
-}
-
-*/
