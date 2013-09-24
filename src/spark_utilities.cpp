@@ -6,9 +6,11 @@
 #include "handshake.h"
 #include "spark_protocol.h"
 
+long sparkSocket;
 sockaddr tSocketAddr;
 
 timeval timeout;
+_types_fd_set_cc3000 readSet;
 
 const char Device_Name[] = "sparkdemodevice";
 
@@ -205,6 +207,39 @@ int Spark_Disconnect(void)
     	sparkSocket = 0xFFFFFFFF;
 
     return retVal;
+}
+
+// called repeatedly from an interrupt handler, so DO NOT BLOCK
+// returns: number of bytes received
+//          -1 on error, signifying socket disconnected
+int receive()
+{
+  // reset the fd_set structure
+  FD_ZERO(&readSet);
+  FD_SET(sparkSocket, &readSet);
+
+  // tell select to timeout after 500 microseconds
+  timeout.tv_sec = 0;
+  timeout.tv_usec = 500;
+
+  int bytes_received = 0;
+  int num_fds_ready = select(sparkSocket + 1, &readSet, NULL, NULL, &timeout);
+
+  if (0 < num_fds_ready)
+  {
+    if (FD_ISSET(sparkSocket, &readSet))
+    {
+      bytes_received = recv(sparkSocket, recvBuff, SPARK_BUF_LEN, 0);
+      if (0 > bytes_received)
+        return bytes_received;
+
+      int bytes_pushed = spark_protocol.queue_push(recvBuff, bytes_received);
+      if (bytes_pushed != bytes_received)
+        return -2; // TODO queue not big enough or not being popped fast enough
+    }
+  }
+
+  return bytes_received;
 }
 
 // Tell receive_line to stop when we get a certain # of bytes.

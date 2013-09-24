@@ -31,11 +31,6 @@ unsigned char _auth = WLAN_SEC_WPA2;
 
 unsigned char NVMEM_Spark_File_Data[NVMEM_SPARK_FILE_SIZE];
 
-/***** Used by receive() *****/
-_types_fd_set_cc3000 readSet;
-long sparkSocket;
-
-
 __IO uint8_t SPARK_WLAN_SLEEP;
 __IO uint8_t SPARK_WLAN_STARTED;
 __IO uint8_t SPARK_SOCKET_CONNECTED;
@@ -475,39 +470,6 @@ void SPARK_WLAN_Loop(void)
 }
 
 
-// called repeatedly from an interrupt handler, so DO NOT BLOCK
-// returns: number of bytes received
-//          -1 on error, signifying socket disconnected
-int receive()
-{
-  // reset the fd_set structure
-  FD_ZERO(&readSet);
-  FD_SET(sparkSocket, &readSet);
-
-  // tell select to timeout after 500 microseconds
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 500;
-
-  int bytes_received = 0;
-  int num_fds_ready = select(sparkSocket + 1, &readSet, NULL, NULL, &timeout);
-
-  if (0 < num_fds_ready)
-  {
-    if (FD_ISSET(sparkSocket, &readSet))
-    {
-      bytes_received = recv(sparkSocket, recvBuff, SPARK_BUF_LEN, 0);
-      if (0 > bytes_received)
-        return bytes_received;
-      
-      int bytes_pushed = spark_protocol.queue_push(recvBuff, bytes_received);
-      if (bytes_pushed != bytes_received)
-        return -2; // TODO queue not big enough or not being popped fast enough
-    }
-  }
-
-  return bytes_received;
-}
-
 
 void SPARK_WLAN_Timing(void)
 {
@@ -566,17 +528,6 @@ void SPARK_WLAN_Timing(void)
 		if (TimingSparkProcessAPI >= TIMING_SPARK_PROCESS_API)
 		{
 			TimingSparkProcessAPI = 0;
-
-      if (SPARK_DEVICE_HANDSHAKING)
-      {
-        Spark_Continue_Handshake();
-      }
-      else
-      {
-        if (receive() < 0)
-          SPARK_SOCKET_ALIVE = 0;
-      }
-
 		}
 		else
 		{
