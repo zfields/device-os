@@ -26,6 +26,7 @@
 #include "spark_macros.h"
 #include "string.h"
 #include "wifi_credentials_reader.h"
+//#include "application.h"
 
 tNetappIpconfigRetArgs ip_config;
 
@@ -420,6 +421,17 @@ void SPARK_WLAN_Setup(void (*presence_announcement_callback)(void))
 
 void SPARK_WLAN_Loop(void)
 {
+	#ifdef DECOUPLE_WLAN_LOOP
+	//digitalWrite(D1,HIGH);
+
+	if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+  	{
+    	TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+    
+  	}
+  	TIM_Cmd(TIM2,DISABLE);
+  	#endif
+
         static int cofd_count = 0;
 
         if(SPARK_WLAN_RESET || SPARK_WLAN_SLEEP)
@@ -513,11 +525,19 @@ void SPARK_WLAN_Loop(void)
 			LED_On(LED_RGB);
 		}
 
+#ifdef DECOUPLE_WLAN_LOOP
+			TIM_Cmd(TIM2,ENABLE);
+#endif
 		return;
 	}
 
 	if(TimingSparkConnectDelay != 0)
 	{
+
+#ifdef DECOUPLE_WLAN_LOOP
+		TIM_Cmd(TIM2,ENABLE);
+#endif
+
 		return;
 	}
 
@@ -560,7 +580,13 @@ void SPARK_WLAN_Loop(void)
                 else
 		{
 			if(SPARK_WLAN_RESET)
+			{
+
+#ifdef DECOUPLE_WLAN_LOOP
+				TIM_Cmd(TIM2,ENABLE);
+#endif
 				return;
+			}
 
                         if ((cofd_count += RESET_ON_CFOD) == MAX_FAILED_CONNECTS)
 			{
@@ -636,4 +662,8 @@ void SPARK_WLAN_Loop(void)
 			SPARK_SOCKET_CONNECTED = 0;
 		}
 	}
+#ifdef DECOUPLE_WLAN_LOOP
+			TIM_Cmd(TIM2,ENABLE);
+			digitalWrite(D1,LOW);
+#endif
 }

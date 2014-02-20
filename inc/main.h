@@ -71,7 +71,7 @@ extern "C" {
  * upset the debugger
  */
 #define IWDG_RESET_ENABLE
-#define TIMING_IWDG_RELOAD	1000 //1sec
+#define TIMING_IWDG_RELOAD  1000 //1sec
 #endif
 
 #endif
@@ -93,7 +93,7 @@ extern "C" {
  */
 //#define RGB_NOTIFICATIONS_CONNECTING_ONLY
 
-#define USART_RX_DATA_SIZE			256
+#define USART_RX_DATA_SIZE      256
 
 /* Exported functions ------------------------------------------------------- */
 void Timing_Decrement(void);
@@ -104,6 +104,15 @@ int32_t USB_USART_Receive_Data(void);
 void USB_USART_Send_Data(uint8_t Data);
 void Handle_USBAsynchXfer(void);
 void Get_SerialNum(void);
+
+#define DECOUPLE_WLAN_LOOP
+
+#ifdef DECOUPLE_WLAN_LOOP
+
+void TIM2_Configuration(void);
+void TIM2_IRQHandler(void);
+
+#endif 
 
 }
 
