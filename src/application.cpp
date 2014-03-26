@@ -23,152 +23,306 @@
  ******************************************************************************
  */
 
+#define DFU_BUILD_ENABLE 1
+
 /* Includes ------------------------------------------------------------------*/  
 #include "application.h"
 
-/* Function prototypes -------------------------------------------------------*/
-int tinkerDigitalRead(String pin);
-int tinkerDigitalWrite(String command);
-int tinkerAnalogRead(String pin);
-int tinkerAnalogWrite(String command);
 
-/* This function is called once at start up ----------------------------------*/
+extern uint8_t WLAN_MANUAL_CONNECT;
+extern volatile uint8_t WLAN_DHCP;
+
+uint8_t serialAvailable();
+int32_t serialRead();
+void serialPrintln(const char * str);
+void serialPrint(const char * str);
+void checkWifiSerial(char c);
+void tokenizeCommand(char *cmd, char** parts);
+void tester_connect(char *ssid, char *pass);
+
+class StartupEarly {
+    public:
+        StartupEarly();
+};
+StartupEarly::StartupEarly() {
+
+    SPARK_CLOUD_CONNECT = 0;
+    WLAN_SMART_CONFIG_START = 0;
+    WLAN_MANUAL_CONNECT = 1;
+}
+
+StartupEarly foo;
+
+
+
+uint8_t notifiedAboutDHCP = 0;
+int state = 0;
+int cmd_index = 0, cmd_length = 256;
+char command[256];
+const char cmd_CONNECT[] = "CONNECT:";
+
+
 void setup()
 {
-	//Setup the Tinker application here
+    RGB.control(true);
+    RGB.color(64, 0, 0);
 
-	//Register all the Tinker functions
-	Spark.function("digitalread", tinkerDigitalRead);
-	Spark.function("digitalwrite", tinkerDigitalWrite);
+    pinMode(D2, OUTPUT);
+    digitalWrite(D2, LOW);
 
-	Spark.function("analogread", tinkerAnalogRead);
-	Spark.function("analogwrite", tinkerAnalogWrite);
+    Serial.begin(9600);
+    Serial1.begin(9600);
 
+
+
+    //TODO: startup without wifi
+    //TODO: run setup/loop without wifi
+    //TODO: try to connect to manual wifi asap
+    //TODO: set the pin / report via serial
 }
 
-/* This function loops forever --------------------------------------------*/
+
 void loop()
 {
-	//This will run in a loop
+    if (WLAN_DHCP) {
+		Serial.println("DHCP DHCP DHCP !");
+		Serial1.println("DHCP DHCP DHCP !");
+		RGB.color(255, 0, 255);
+		digitalWrite(D2, HIGH);
+		delay(1000);
+	}
+	else {
+	    state = !state;
+	    RGB.color(64, (state) ? 255 : 0, 64);
+	    //delay(100);
+
+//        Serial.println("waiting...");
+//        delay(500);
+	}
+
+
+	if (serialAvailable()) {
+		int c = serialRead();
+
+		checkWifiSerial((char)c);
+
+    }
+//
+//		if ((c >= pins_start) && (c <= pins_end)) {
+//		    //if ((c >= 0) && (c < numPins)) {
+//			//if we should receive a byte value in the range of '0'-'9'
+//			//lets assume they would like us to turn off all the pins, and turn on just that pin.
+//
+//			handlePinMessage(c - pins_start);
+//			serialPrintln("OK PIN \n");
+//		}
+//		else if ((c >= rgb_start) && (c <= rgb_end)) {
+//			handleRGBMessage(c - rgb_start);
+//			serialPrintln("OK LED \n");
+//		}
+//		else if (c == 'T') {
+//			char buffer[32];
+//			unsigned char size = itoa(millis(), buffer);
+//			buffer[size] = '\0';
+//
+//			serialPrint("The time is:");
+//			serialPrint(buffer);
+//			serialPrintln(":");
+//		}
+//		else if (c == 'X') {
+//			sendAlives = 1;
+//		}
+//		else if (c == 'Z') {
+//			sendAlives = 0;
+//		}
+//		else if (c == 'V') {
+//			serialPrintln("Serial+Pin+Wifi+RTC+RGB Tester!");
+//		}
+//		else if (c == 'M') {
+//
+//			char buffer[25];
+//			unsigned char coreid[12];
+//			memcpy(coreid, (void *)ID1, 12);
+//			coreIdToHex(coreid, 12, buffer);
+//
+//			serialPrint("ID:");
+//			serialPrint(buffer);
+//			serialPrintln(":END");
+//		}
+//		else if (c == ' ') {
+//			;
+//		}
+//		else if  (c == 'j') {
+//			unsigned char pubkey[294];
+//			char buffer[588];
+//			FLASH_Read_ServerPublicKey(pubkey);
+//			coreIdToHex(pubkey, 294, buffer);
+//
+//			serialPrintln("public key is");
+//			serialPrintln(buffer);
+//		}
+//		else {
+//			//other commands...?
+//
+//			unsigned char in[1];
+//			in[0] = c;
+//
+//			char buffer[3];
+//			coreIdToHex(in, 1, buffer);
+//
+//			serialPrint("HUH: ");
+//			serialPrintln(buffer);
+//		}
+//	}
 }
 
-/*******************************************************************************
- * Function Name  : tinkerDigitalRead
- * Description    : Reads the digital value of a given pin
- * Input          : Pin 
- * Output         : None.
- * Return         : Value of the pin (0 or 1) in INT type
-                    Returns a negative number on failure
- *******************************************************************************/
-int tinkerDigitalRead(String pin)
-{
-	//convert ascii to integer
-	int pinNumber = pin.charAt(1) - '0';
-	//Sanity check to see if the pin numbers are within limits
-	if (pinNumber< 0 || pinNumber >7) return -1;
 
-	if(pin.startsWith("D"))
-	{
-		pinMode(pinNumber, INPUT_PULLDOWN);
-		return digitalRead(pinNumber);
+void checkWifiSerial(char c) {
+	if (cmd_index < cmd_length) {
+		command[cmd_index] = c;
+		cmd_index++;
 	}
-	else if (pin.startsWith("A"))
-	{
-		pinMode(pinNumber+10, INPUT_PULLDOWN);
-		return digitalRead(pinNumber+10);
+	else {
+		cmd_index = 0;
 	}
-	return -2;
+
+	if (c == ' ') {
+		//reset the command index.
+		cmd_index = 0;
+	}
+	else if (c == ';') {
+		serialPrintln("got semicolon.");
+		serialPrint("checking command: ");
+		serialPrintln(command);
+
+		char *parts[5];
+		char *start;
+
+//		if (start = strstr(command, cmd_ENABLE)) {
+//			serialPrintln("enable wifi...");
+//			//initializeWifi();
+//			wifiEnable();
+//			serialPrintln("DONE DONE DONE DONE DONE DONE DONE DONE DONE DONE");
+//		}
+//		else if (start = strstr(command, cmd_DISABLE)) {
+//			serialPrintln("disable wifi...");
+//			//initializeWifi();
+//			wifiDisable();
+//			serialPrintln("DONE DONE DONE DONE DONE DONE DONE DONE DONE DONE");
+//		}
+	 if (start = strstr(command, cmd_CONNECT)) {
+			cmd_index = 0;
+
+			serialPrintln("tokenizing...");
+
+			//expecting CONNECT:SSID:PASS;
+			tokenizeCommand(start, parts);
+			serialPrintln("parts...");
+			serialPrintln(parts[0]);
+			serialPrintln(parts[1]);
+			serialPrintln(parts[2]);
+
+			serialPrintln("connecting...");
+			tester_connect(parts[1], parts[2]);
+		}
+//		else if (start = strstr(command, cmd_OPEN)) {
+//			cmd_index = 0;
+//
+//			//expecting OPEN:IP:PORT:MSG;
+//			serialPrintln("tokenizing...");
+//			tokenizeCommand(start, parts);
+//
+//			serialPrintln(parts[0]);
+//			serialPrintln(parts[1]);
+//			serialPrintln(parts[2]);
+//			serialPrintln(parts[3]);
+//
+//			serialPrintln("sending...");
+//			//char *ip, char *port, char *msg
+//			tester_ping(parts[1], parts[2], parts[3]);
+//
+//		}
+//		else if (start = strstr(command, cmd_PARSE)) {
+//			cmd_index = 0;
+//
+//			serialPrintln("tokenizing...");
+//			tokenizeCommand(start, parts);
+//
+//			serialPrintln(parts[0]);
+//			serialPrintln(parts[1]);
+//			serialPrintln(parts[2]);
+//			serialPrintln(parts[3]);
+//
+//			int ip[4];
+//			parseIP(parts[1], ip);
+//			printIP(ip);
+//
+//			int test[4];
+//			test[0] = 11;
+//			test[1] = 22;
+//			test[2] = 33;
+//			test[3] = 44;
+//			printIP(test);
+//		}
+	}
 }
 
-/*******************************************************************************
- * Function Name  : tinkerDigitalWrite
- * Description    : Sets the specified pin HIGH or LOW
- * Input          : Pin and value
- * Output         : None.
- * Return         : 1 on success and a negative number on failure
- *******************************************************************************/
-int tinkerDigitalWrite(String command)
-{
-	bool value = 0;
-	//convert ascii to integer
-	int pinNumber = command.charAt(1) - '0';
-	//Sanity check to see if the pin numbers are within limits
-	if (pinNumber< 0 || pinNumber >7) return -1;
 
-	if(command.substring(3,7) == "HIGH") value = 1;
-	else if(command.substring(3,6) == "LOW") value = 0;
-	else return -2;
-
-	if(command.startsWith("D"))
-	{
-		pinMode(pinNumber, OUTPUT);
-		digitalWrite(pinNumber, value);
-		return 1;
-	}
-	else if(command.startsWith("A"))
-	{
-		pinMode(pinNumber+10, OUTPUT);
-		digitalWrite(pinNumber+10, value);
-		return 1;
-	}
-	else return -3;
+void serialPrintln(const char * str) {
+	Serial.println(str);
+	Serial1.println(str);
+}
+void serialPrint(const char * str) {
+	Serial.print(str);
+	Serial1.print(str);
 }
 
-/*******************************************************************************
- * Function Name  : tinkerAnalogRead
- * Description    : Reads the analog value of a pin
- * Input          : Pin 
- * Output         : None.
- * Return         : Returns the analog value in INT type (0 to 4095)
-                    Returns a negative number on failure
- *******************************************************************************/
-int tinkerAnalogRead(String pin)
-{
-	//convert ascii to integer
-	int pinNumber = pin.charAt(1) - '0';
-	//Sanity check to see if the pin numbers are within limits
-	if (pinNumber< 0 || pinNumber >7) return -1;
-
-	if(pin.startsWith("D"))
-	{
-		pinMode(pinNumber, INPUT);
-		return analogRead(pinNumber);
-	}
-	else if (pin.startsWith("A"))
-	{
-		pinMode(pinNumber+10, INPUT);
-		return analogRead(pinNumber+10);
-	}
-	return -2;
+uint8_t serialAvailable() {
+	return Serial.available() | Serial1.available();
 }
 
-/*******************************************************************************
- * Function Name  : tinkerAnalogWrite
- * Description    : Writes an analog value (PWM) to the specified pin
- * Input          : Pin and Value (0 to 255)
- * Output         : None.
- * Return         : 1 on success and a negative number on failure
- *******************************************************************************/
-int tinkerAnalogWrite(String command)
-{
-	//convert ascii to integer
-	int pinNumber = command.charAt(1) - '0';
-	//Sanity check to see if the pin numbers are within limits
-	if (pinNumber< 0 || pinNumber >7) return -1;
-
-	String value = command.substring(3);
-
-	if(command.startsWith("D"))
-	{
-		pinMode(pinNumber, OUTPUT);
-		analogWrite(pinNumber, value.toInt());
-		return 1;
+int32_t serialRead() {
+	if (Serial.available()) {
+		return Serial.read();
 	}
-	else if(command.startsWith("A"))
-	{
-		pinMode(pinNumber+10, OUTPUT);
-		analogWrite(pinNumber+10, value.toInt());
-		return 1;
+	else if (Serial1.available()) {
+		return Serial1.read();
 	}
-	else return -2;
+	return 0;
+}
+
+void tokenizeCommand(char *cmd, char* parts[]) {
+	char * pch;
+	int idx = 0;
+
+	//printf ("Splitting string \"%s\" into tokens:\n", cmd);
+	pch = strtok (cmd,":;");
+	while (pch != NULL)
+	{
+		if (idx < 5) {
+			parts[idx++] = pch;
+		}
+		pch = strtok (NULL, ":;");
+	}
+}
+
+
+
+
+void tester_connect(char *ssid, char *pass) {
+
+     RGB.color(64, 64, 0);
+
+    SPARK_MANUAL_CREDS(ssid, pass);
+
+	RGB.color(0, 0, 64);
+//
+//	wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
+//	wlan_connect(WLAN_SEC_WPA2, ssid, strlen(ssid), NULL, pass, strlen(pass));
+//	WLAN_MANUAL_CONNECT = 0;
+//
+//	RGBColor = 0xFF00FF;		//purple
+	//USERLED_SetRGBColor(0xFF00FF);		//purple
+	//USERLED_On(LED_RGB);
+	serialPrintln("  WIFI Connected?    ");
 }

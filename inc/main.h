@@ -61,9 +61,9 @@ extern "C" {
  * Note that once the JTAG IOs are disabled, the connection with the host debugger
  * is lost and cannot be re-established as long as the JTAG IOs remain disabled.
  */
-#ifndef USE_SWD_JTAG
-#define SWD_JTAG_DISABLE
-#endif
+//#ifndef USE_SWD_JTAG
+//#define SWD_JTAG_DISABLE
+//#endif
 
 /*
  * Use Independent Watchdog to force a system reset when a software error occurs
