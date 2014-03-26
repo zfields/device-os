@@ -54,7 +54,7 @@ static uint32_t lastEvent = 0;
 #endif
 tNetappIpconfigRetArgs ip_config;
 
-volatile uint8_t WLAN_MANUAL_CONNECT = 0; //For Manual connection, set this to 1
+volatile uint8_t WLAN_MANUAL_CONNECT = 1; //For Manual connection, set this to 1
 volatile uint8_t WLAN_DELETE_PROFILES;
 volatile uint8_t WLAN_SMART_CONFIG_START;
 volatile uint8_t WLAN_SMART_CONFIG_STOP;
@@ -486,7 +486,7 @@ void SPARK_WLAN_Loop(void)
         // Workaround to enter smart config when socket connect had blocked
         wlan_start(0);
         SPARK_WLAN_STARTED = 1;
-        Start_Smart_Config();
+        //Start_Smart_Config();
       }
     }
   }
@@ -507,11 +507,13 @@ void SPARK_WLAN_Loop(void)
     }
   }
 
-  if (WLAN_SMART_CONFIG_START)
-  {
-    Start_Smart_Config();
-  }
-  else if (WLAN_MANUAL_CONNECT && !WLAN_DHCP && (_ssid != NULL))
+//NEVER SMART CONFIG !
+//  if (WLAN_SMART_CONFIG_START)
+//  {
+//    Start_Smart_Config();
+//  }
+//  else
+  if (WLAN_MANUAL_CONNECT && !WLAN_DHCP && (_ssid != NULL))
   {
     CLR_WLAN_WD();
     wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
