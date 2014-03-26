@@ -91,10 +91,17 @@ char aucCC3000_prefix[] = {'T', 'T', 'T'};
 const unsigned char smartconfigkey[] = "sparkdevices2013";	//16 bytes
 /* device name used by smart config response */
 char device_name[] = "CC3000";
+/* Manual connect credentials; only used if WLAN_MANUAL_CONNECT == 1 */
+char *_ssid = NULL;
+char *_password = NULL;
 
 /* Manual connect credentials; only used if WLAN_MANUAL_CONNECT == 1 */
-char _ssid[] = "ssid";
-char _password[] = "password";
+void SPARK_MANUAL_CREDS(char *ssid, char *pass) {
+    _ssid = ssid;
+    _password = pass;
+    WLAN_MANUAL_CONNECT = 1;
+}
+
 // Auth options are WLAN_SEC_UNSEC, WLAN_SEC_WPA, WLAN_SEC_WEP, and WLAN_SEC_WPA2
 unsigned char _auth = WLAN_SEC_WPA2;
 
@@ -504,7 +511,7 @@ void SPARK_WLAN_Loop(void)
   {
     Start_Smart_Config();
   }
-  else if (WLAN_MANUAL_CONNECT && !WLAN_DHCP)
+  else if (WLAN_MANUAL_CONNECT && !WLAN_DHCP && (_ssid != NULL))
   {
     CLR_WLAN_WD();
     wlan_ioctl_set_connection_policy(DISABLE, DISABLE, DISABLE);
