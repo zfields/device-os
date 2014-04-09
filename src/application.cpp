@@ -62,6 +62,8 @@ char command[256];
 const char cmd_CONNECT[] = "CONNECT:";
 const char cmd_RESET[] = "RESET:";
 const char cmd_DFU[] = "DFU:";
+const char cmd_LOCK[] = "LOCK:";
+const char cmd_UNLOCK[] = "UNLOCK:";
 
 
 void setup()
@@ -143,12 +145,14 @@ void checkWifiSerial(char c) {
             serialPrintln("connecting...");
             tester_connect(parts[1], parts[2]);
         }
-        else if (start == strstr(command, cmd_DFU)) {
+        else if (start = strstr(command, cmd_DFU)) {
             cmd_index = 0;
 
             serialPrintln("resetting into DFU mode!");
-            Delay(500);
+            serialPrintln("resetting into DFU mode!");
+            Delay(100);
 
+            serialPrintln("resetting into DFU mode!");
 
             //RESET INTO DFU MODE
             USE_SYSTEM_FLAGS = 1;
@@ -161,26 +165,44 @@ void checkWifiSerial(char c) {
             USB_Cable_Config(DISABLE);
             NVIC_SystemReset();
         }
-        else if (start == strstr(command, cmd_RESET)) {
+        else if (start = strstr(command, cmd_RESET)) {
             cmd_index = 0;
 
             //to trigger a factory reset:
             serialPrintln("factory reset");
-            Delay(500);
+            Delay(100);
 
             //FACTORY RESET
+            BKP_WriteBackupRegister(BKP_DR10, 0xFF55);
             USE_SYSTEM_FLAGS = 1;
-            FLASH_OTA_Update_SysFlag = 0xFFFF;
+            FLASH_OTA_Update_SysFlag = 0xFF55;
             Save_SystemFlags();
-
-            BKP_WriteBackupRegister(BKP_DR1, SECOND_RETRY);
-            //BKP_WriteBackupRegister(BKP_DR1, SECOND_RETRY);
-            BKP_WriteBackupRegister(BKP_DR10, 0xFFFF);
-
+            Delay(100);
 
             USB_Cable_Config(DISABLE);
             NVIC_SystemReset();
-            while(1) { ; }
+        }
+        else if (start = strstr(command, cmd_LOCK)) {
+            serialPrintln("Locking...");
+
+            //LOCK
+            FLASH_WriteProtection_Enable(BOOTLOADER_FLASH_PAGES);
+
+            LED_SetRGBColor(RGB_COLOR_RED);
+            LED_On(LED_RGB);
+
+            serialPrintln("Locking... Done locking! Done locking! Done locking!");
+        }
+        else if (start = strstr(command, cmd_UNLOCK)) {
+            serialPrintln("unlocking...");
+
+            //LOCK
+            FLASH_WriteProtection_Disable(BOOTLOADER_FLASH_PAGES);
+
+            LED_SetRGBColor(RGB_COLOR_GREEN);
+            LED_On(LED_RGB);
+
+            serialPrintln("Locking... Done unlocking! Done unlocking! Done unlocking!");
         }
 
 

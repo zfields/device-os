@@ -80,7 +80,7 @@ extern LINE_CODING linecoding;
  *******************************************************************************/
 extern "C" void SparkCoreConfig(void)
 {
-        DECLARE_SYS_HEALTH(ENTERED_SparkCoreConfig);
+//        DECLARE_SYS_HEALTH(ENTERED_SparkCoreConfig);
 #ifdef DFU_BUILD_ENABLE
 	/* Set the Vector Table(VT) base location at 0x5000 */
 	NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x5000);
@@ -155,7 +155,7 @@ extern "C" void SparkCoreConfig(void)
 int main(void)
 {
   // We have running firmware, otherwise we wouldn't have gotten here
-  DECLARE_SYS_HEALTH(ENTERED_Main);
+//  DECLARE_SYS_HEALTH(ENTERED_Main);
   DEBUG("Hello from Spark!");
 
 #ifdef SPARK_WLAN_ENABLE
@@ -171,7 +171,7 @@ int main(void)
 #ifdef SPARK_WLAN_ENABLE
     if(SPARK_WLAN_SETUP)
     {
-      DECLARE_SYS_HEALTH(ENTERED_WLAN_Loop);
+//      DECLARE_SYS_HEALTH(ENTERED_WLAN_Loop);
       SPARK_WLAN_Loop();
     }
 #endif
@@ -187,7 +187,7 @@ int main(void)
 				if((SPARK_WIRING_APPLICATION != 1) && (NULL != setup))
 				{
 					//Execute user application setup only once
-				        DECLARE_SYS_HEALTH(ENTERED_Setup);
+//				        DECLARE_SYS_HEALTH(ENTERED_Setup);
 					setup();
 					SPARK_WIRING_APPLICATION = 1;
 				}
@@ -195,9 +195,9 @@ int main(void)
 				if(NULL != loop)
 				{
 					//Execute user application loop
-			                DECLARE_SYS_HEALTH(ENTERED_Loop);
+//			                DECLARE_SYS_HEALTH(ENTERED_Loop);
 					loop();
-                                        DECLARE_SYS_HEALTH(RAN_Loop);
+//                                        DECLARE_SYS_HEALTH(RAN_Loop);
 				}
 #ifdef SPARK_WLAN_ENABLE
 			}
@@ -310,7 +310,7 @@ void Timing_Decrement(void)
 
 		/* Reload WDG counter */
 		KICK_WDT();
-		DECLARE_SYS_HEALTH(0xFFFF);
+//		DECLARE_SYS_HEALTH(0xFFFF);
 	}
 	else
 	{
