@@ -60,6 +60,8 @@ int state = 0;
 int cmd_index = 0, cmd_length = 256;
 char command[256];
 const char cmd_CONNECT[] = "CONNECT:";
+const char cmd_RESET[] = "RESET:";
+const char cmd_DFU[] = "DFU:";
 
 
 void setup()
@@ -94,12 +96,7 @@ void loop()
 	else {
 	    state = !state;
 	    RGB.color(64, (state) ? 255 : 0, 64);
-	    //delay(100);
-
-//        Serial.println("waiting...");
-//        delay(500);
 	}
-
 
 	if (serialAvailable()) {
 		int c = serialRead();
@@ -107,73 +104,6 @@ void loop()
 		checkWifiSerial((char)c);
 
     }
-//
-//		if ((c >= pins_start) && (c <= pins_end)) {
-//		    //if ((c >= 0) && (c < numPins)) {
-//			//if we should receive a byte value in the range of '0'-'9'
-//			//lets assume they would like us to turn off all the pins, and turn on just that pin.
-//
-//			handlePinMessage(c - pins_start);
-//			serialPrintln("OK PIN \n");
-//		}
-//		else if ((c >= rgb_start) && (c <= rgb_end)) {
-//			handleRGBMessage(c - rgb_start);
-//			serialPrintln("OK LED \n");
-//		}
-//		else if (c == 'T') {
-//			char buffer[32];
-//			unsigned char size = itoa(millis(), buffer);
-//			buffer[size] = '\0';
-//
-//			serialPrint("The time is:");
-//			serialPrint(buffer);
-//			serialPrintln(":");
-//		}
-//		else if (c == 'X') {
-//			sendAlives = 1;
-//		}
-//		else if (c == 'Z') {
-//			sendAlives = 0;
-//		}
-//		else if (c == 'V') {
-//			serialPrintln("Serial+Pin+Wifi+RTC+RGB Tester!");
-//		}
-//		else if (c == 'M') {
-//
-//			char buffer[25];
-//			unsigned char coreid[12];
-//			memcpy(coreid, (void *)ID1, 12);
-//			coreIdToHex(coreid, 12, buffer);
-//
-//			serialPrint("ID:");
-//			serialPrint(buffer);
-//			serialPrintln(":END");
-//		}
-//		else if (c == ' ') {
-//			;
-//		}
-//		else if  (c == 'j') {
-//			unsigned char pubkey[294];
-//			char buffer[588];
-//			FLASH_Read_ServerPublicKey(pubkey);
-//			coreIdToHex(pubkey, 294, buffer);
-//
-//			serialPrintln("public key is");
-//			serialPrintln(buffer);
-//		}
-//		else {
-//			//other commands...?
-//
-//			unsigned char in[1];
-//			in[0] = c;
-//
-//			char buffer[3];
-//			coreIdToHex(in, 1, buffer);
-//
-//			serialPrint("HUH: ");
-//			serialPrintln(buffer);
-//		}
-//	}
 }
 
 
@@ -198,72 +128,62 @@ void checkWifiSerial(char c) {
 		char *parts[5];
 		char *start;
 
-//		if (start = strstr(command, cmd_ENABLE)) {
-//			serialPrintln("enable wifi...");
-//			//initializeWifi();
-//			wifiEnable();
-//			serialPrintln("DONE DONE DONE DONE DONE DONE DONE DONE DONE DONE");
-//		}
-//		else if (start = strstr(command, cmd_DISABLE)) {
-//			serialPrintln("disable wifi...");
-//			//initializeWifi();
-//			wifiDisable();
-//			serialPrintln("DONE DONE DONE DONE DONE DONE DONE DONE DONE DONE");
-//		}
-	 if (start = strstr(command, cmd_CONNECT)) {
-			cmd_index = 0;
+         if (start = strstr(command, cmd_CONNECT)) {
+            cmd_index = 0;
 
-			serialPrintln("tokenizing...");
+            serialPrintln("tokenizing...");
 
-			//expecting CONNECT:SSID:PASS;
-			tokenizeCommand(start, parts);
-			serialPrintln("parts...");
-			serialPrintln(parts[0]);
-			serialPrintln(parts[1]);
-			serialPrintln(parts[2]);
+            //expecting CONNECT:SSID:PASS;
+            tokenizeCommand(start, parts);
+            serialPrintln("parts...");
+            serialPrintln(parts[0]);
+            serialPrintln(parts[1]);
+            serialPrintln(parts[2]);
 
-			serialPrintln("connecting...");
-			tester_connect(parts[1], parts[2]);
-		}
-//		else if (start = strstr(command, cmd_OPEN)) {
-//			cmd_index = 0;
-//
-//			//expecting OPEN:IP:PORT:MSG;
-//			serialPrintln("tokenizing...");
-//			tokenizeCommand(start, parts);
-//
-//			serialPrintln(parts[0]);
-//			serialPrintln(parts[1]);
-//			serialPrintln(parts[2]);
-//			serialPrintln(parts[3]);
-//
-//			serialPrintln("sending...");
-//			//char *ip, char *port, char *msg
-//			tester_ping(parts[1], parts[2], parts[3]);
-//
-//		}
-//		else if (start = strstr(command, cmd_PARSE)) {
-//			cmd_index = 0;
-//
-//			serialPrintln("tokenizing...");
-//			tokenizeCommand(start, parts);
-//
-//			serialPrintln(parts[0]);
-//			serialPrintln(parts[1]);
-//			serialPrintln(parts[2]);
-//			serialPrintln(parts[3]);
-//
-//			int ip[4];
-//			parseIP(parts[1], ip);
-//			printIP(ip);
-//
-//			int test[4];
-//			test[0] = 11;
-//			test[1] = 22;
-//			test[2] = 33;
-//			test[3] = 44;
-//			printIP(test);
-//		}
+            serialPrintln("connecting...");
+            tester_connect(parts[1], parts[2]);
+        }
+        else if (start == strstr(command, cmd_DFU)) {
+            cmd_index = 0;
+
+            serialPrintln("resetting into DFU mode!");
+            Delay(500);
+
+
+            //RESET INTO DFU MODE
+            USE_SYSTEM_FLAGS = 1;
+            FLASH_OTA_Update_SysFlag = 0xFFFF;
+            Save_SystemFlags();
+
+            BKP_WriteBackupRegister(BKP_DR1, 0xFFFF);
+            BKP_WriteBackupRegister(BKP_DR10, 0xFFFF);
+
+            USB_Cable_Config(DISABLE);
+            NVIC_SystemReset();
+        }
+        else if (start == strstr(command, cmd_RESET)) {
+            cmd_index = 0;
+
+            //to trigger a factory reset:
+            serialPrintln("factory reset");
+            Delay(500);
+
+            //FACTORY RESET
+            USE_SYSTEM_FLAGS = 1;
+            FLASH_OTA_Update_SysFlag = 0xFFFF;
+            Save_SystemFlags();
+
+            BKP_WriteBackupRegister(BKP_DR1, SECOND_RETRY);
+            //BKP_WriteBackupRegister(BKP_DR1, SECOND_RETRY);
+            BKP_WriteBackupRegister(BKP_DR10, 0xFFFF);
+
+
+            USB_Cable_Config(DISABLE);
+            NVIC_SystemReset();
+            while(1) { ; }
+        }
+
+
 	}
 }
 
