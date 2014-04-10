@@ -57,6 +57,8 @@ StartupEarly foo;
 
 uint8_t notifiedAboutDHCP = 0;
 int state = 0;
+int wifi_testing = 0;
+int dhcp_notices = 0;
 int cmd_index = 0, cmd_length = 256;
 char command[256];
 const char cmd_CONNECT[] = "CONNECT:";
@@ -88,23 +90,24 @@ void setup()
 
 void loop()
 {
-    if (WLAN_DHCP) {
+    if (WLAN_DHCP && (dhcp_notices < 100)) {
 		Serial.println("DHCP DHCP DHCP !");
 		Serial1.println("DHCP DHCP DHCP !");
 		RGB.color(255, 0, 255);
 		digitalWrite(D2, HIGH);
-		delay(1000);
+		dhcp_notices++;
 	}
-	else {
+	else if (wifi_testing) {
 	    state = !state;
 	    RGB.color(64, (state) ? 255 : 0, 64);
 	}
 
 	if (serialAvailable()) {
+	    state = !state;
+	    RGB.color(0, 64, (state) ? 255 : 0);
+
 		int c = serialRead();
-
 		checkWifiSerial((char)c);
-
     }
 }
 
@@ -143,15 +146,15 @@ void checkWifiSerial(char c) {
             serialPrintln(parts[2]);
 
             serialPrintln("connecting...");
+            wifi_testing = 1;
             tester_connect(parts[1], parts[2]);
         }
         else if (start = strstr(command, cmd_DFU)) {
             cmd_index = 0;
 
-            serialPrintln("resetting into DFU mode!");
-            serialPrintln("resetting into DFU mode!");
+            serialPrintln("DFU mode! DFU mode! DFU mode! DFU mode! DFU mode! DFU mode!");
+            serialPrintln("DFU mode! DFU mode! DFU mode! DFU mode! DFU mode! DFU mode!");
             Delay(100);
-
             serialPrintln("resetting into DFU mode!");
 
             //RESET INTO DFU MODE
@@ -169,8 +172,10 @@ void checkWifiSerial(char c) {
             cmd_index = 0;
 
             //to trigger a factory reset:
-            serialPrintln("factory reset");
-            Delay(100);
+
+            serialPrintln("factory reset! factory reset! factory reset! factory reset!");
+            serialPrintln("factory reset! factory reset! factory reset! factory reset!");
+            Delay(1000);
 
             //FACTORY RESET
             BKP_WriteBackupRegister(BKP_DR10, 0xFF55);
@@ -182,27 +187,32 @@ void checkWifiSerial(char c) {
             USB_Cable_Config(DISABLE);
             NVIC_SystemReset();
         }
-        else if (start = strstr(command, cmd_LOCK)) {
-            serialPrintln("Locking...");
 
-            //LOCK
-            FLASH_WriteProtection_Enable(BOOTLOADER_FLASH_PAGES);
-
-            LED_SetRGBColor(RGB_COLOR_RED);
-            LED_On(LED_RGB);
-
-            serialPrintln("Locking... Done locking! Done locking! Done locking!");
-        }
         else if (start = strstr(command, cmd_UNLOCK)) {
+            cmd_index = 0;
+
             serialPrintln("unlocking...");
 
             //LOCK
             FLASH_WriteProtection_Disable(BOOTLOADER_FLASH_PAGES);
 
-            LED_SetRGBColor(RGB_COLOR_GREEN);
+            RGB.color(0, 255, 0);
             LED_On(LED_RGB);
 
-            serialPrintln("Locking... Done unlocking! Done unlocking! Done unlocking!");
+            serialPrintln("unlocking... Done unlocking! Done unlocking! Done unlocking!");
+        }
+        else if (start = strstr(command, cmd_LOCK)) {
+            cmd_index = 0;
+
+            serialPrintln("Locking...");
+
+            //LOCK
+            FLASH_WriteProtection_Enable(BOOTLOADER_FLASH_PAGES);
+
+            RGB.color(255, 0, 0);
+            LED_On(LED_RGB);
+
+            serialPrintln("Locking... Done locking! Done locking! Done locking!");
         }
 
 

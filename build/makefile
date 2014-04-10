@@ -44,7 +44,7 @@ include $(SRC_MAKEFILES)
 
 # Paths to dependant projects, referenced from root of this project
 LIB_CORE_COMMON_PATH = ../core-common-lib
-LIB_CORE_COMMUNICATION_PATH = ../core-communication-lib
+#LIB_CORE_COMMUNICATION_PATH = ../core-communication-lib
 
 # Additional include directories, applied to objects built for this target.
 INCLUDE_DIRS += $(LIB_CORE_COMMON_PATH)/CMSIS/Include
@@ -53,8 +53,8 @@ INCLUDE_DIRS += $(LIB_CORE_COMMON_PATH)/STM32F10x_StdPeriph_Driver/inc
 INCLUDE_DIRS += $(LIB_CORE_COMMON_PATH)/STM32_USB-FS-Device_Driver/inc
 INCLUDE_DIRS += $(LIB_CORE_COMMON_PATH)/CC3000_Host_Driver
 INCLUDE_DIRS += $(LIB_CORE_COMMON_PATH)/SPARK_Firmware_Driver/inc
-INCLUDE_DIRS += $(LIB_CORE_COMMUNICATION_PATH)/lib/tropicssl/include
-INCLUDE_DIRS += $(LIB_CORE_COMMUNICATION_PATH)/src
+#INCLUDE_DIRS += $(LIB_CORE_COMMUNICATION_PATH)/lib/tropicssl/include
+#INCLUDE_DIRS += $(LIB_CORE_COMMUNICATION_PATH)/src
 
 # Compiler flags
 CFLAGS =  -g3 -gdwarf-2 -Os -mcpu=cortex-m3 -mthumb 
@@ -85,7 +85,7 @@ CPPFLAGS = -fno-exceptions -fno-rtti
 # Linker flags
 LDFLAGS += -T../linker/linker_stm32f10x_md_dfu.ld -nostartfiles -Xlinker --gc-sections 
 LDFLAGS += -L$(SRC_PATH)/$(LIB_CORE_COMMON_PATH)/build -lcore-common-lib
-LDFLAGS += -L$(SRC_PATH)/$(LIB_CORE_COMMUNICATION_PATH)/build -lcore-communication-lib
+#LDFLAGS += -L$(SRC_PATH)/$(LIB_CORE_COMMUNICATION_PATH)/build -lcore-communication-lib
 LDFLAGS += -Wl,-Map,$(TARGET).map
 
 # Assember flags
@@ -153,9 +153,9 @@ check_external_deps:
 	@echo Building core-common-lib
 	@$(MAKE) -C $(SRC_PATH)/$(LIB_CORE_COMMON_PATH)/build --no-print-directory
 	@echo
-	@echo Building core-communication-lib
-	@$(MAKE) -C $(SRC_PATH)/$(LIB_CORE_COMMUNICATION_PATH)/build --no-print-directory
-	@echo
+	#@echo Building core-communication-lib
+	#@$(MAKE) -C $(SRC_PATH)/$(LIB_CORE_COMMUNICATION_PATH)/build --no-print-directory
+	#@echo
 
 # Tool invocations
 
@@ -192,9 +192,9 @@ clean:
 # Should clean invoke clean on the dependant libs as well? Sure..
 	@$(MAKE) -C $(SRC_PATH)/$(LIB_CORE_COMMON_PATH)/build clean --no-print-directory
 	@echo
-	@echo Clean core-communication-lib
-	@$(MAKE) -C $(SRC_PATH)/$(LIB_CORE_COMMUNICATION_PATH)/build clean --no-print-directory
-	@echo
+	#@echo Clean core-communication-lib
+	#@$(MAKE) -C $(SRC_PATH)/$(LIB_CORE_COMMUNICATION_PATH)/build clean --no-print-directory
+	#@echo
 
 .PHONY: all clean check_external_deps elf bin hex size program-dfu program-cloud
 .SECONDARY:

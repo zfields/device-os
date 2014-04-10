@@ -30,9 +30,9 @@
 #include "netapp.h"
 #include "string.h"
 #include <stdarg.h>
-#include "spark_protocol.h"
+//#include "spark_protocol.h"
 
-SparkProtocol spark_protocol;
+//SparkProtocol spark_protocol;
 
 #define INVALID_SOCKET (-1)
 
@@ -180,45 +180,45 @@ void SparkClass::function(const char *funcKey, int (*pFunc)(String paramString))
 	}
 }
 
-void SparkClass::publish(const char *eventName)
-{
-  spark_protocol.send_event(eventName, NULL, 60, EventType::PUBLIC);
-}
-
-void SparkClass::publish(const char *eventName, const char *eventData)
-{
-  spark_protocol.send_event(eventName, eventData, 60, EventType::PUBLIC);
-}
-
-void SparkClass::publish(const char *eventName, const char *eventData, int ttl)
-{
-  spark_protocol.send_event(eventName, eventData, ttl, EventType::PUBLIC);
-}
-
-void SparkClass::publish(const char *eventName, const char *eventData, int ttl, Spark_Event_TypeDef eventType)
-{
-  spark_protocol.send_event(eventName, eventData, ttl, (eventType ? EventType::PRIVATE : EventType::PUBLIC));
-}
-
-void SparkClass::publish(String eventName)
-{
-  publish(eventName.c_str());
-}
-
-void SparkClass::publish(String eventName, String eventData)
-{
-  publish(eventName.c_str(), eventData.c_str());
-}
-
-void SparkClass::publish(String eventName, String eventData, int ttl)
-{
-  publish(eventName.c_str(), eventData.c_str(), ttl);
-}
-
-void SparkClass::publish(String eventName, String eventData, int ttl, Spark_Event_TypeDef eventType)
-{
-  publish(eventName.c_str(), eventData.c_str(), ttl, eventType);
-}
+//void SparkClass::publish(const char *eventName)
+//{
+//  spark_protocol.send_event(eventName, NULL, 60, EventType::PUBLIC);
+//}
+//
+//void SparkClass::publish(const char *eventName, const char *eventData)
+//{
+//  spark_protocol.send_event(eventName, eventData, 60, EventType::PUBLIC);
+//}
+//
+//void SparkClass::publish(const char *eventName, const char *eventData, int ttl)
+//{
+//  spark_protocol.send_event(eventName, eventData, ttl, EventType::PUBLIC);
+//}
+//
+//void SparkClass::publish(const char *eventName, const char *eventData, int ttl, Spark_Event_TypeDef eventType)
+//{
+//  spark_protocol.send_event(eventName, eventData, ttl, (eventType ? EventType::PRIVATE : EventType::PUBLIC));
+//}
+//
+//void SparkClass::publish(String eventName)
+//{
+//  publish(eventName.c_str());
+//}
+//
+//void SparkClass::publish(String eventName, String eventData)
+//{
+//  publish(eventName.c_str(), eventData.c_str());
+//}
+//
+//void SparkClass::publish(String eventName, String eventData, int ttl)
+//{
+//  publish(eventName.c_str(), eventData.c_str(), ttl);
+//}
+//
+//void SparkClass::publish(String eventName, String eventData, int ttl, Spark_Event_TypeDef eventType)
+//{
+//  publish(eventName.c_str(), eventData.c_str(), ttl, eventType);
+//}
 
 void SparkClass::sleep(Spark_Sleep_TypeDef sleepMode, long seconds)
 {
@@ -423,81 +423,83 @@ void copyUserVariableKey(char *destination, int variable_index)
          USER_VAR_KEY_LENGTH);
 }
 
-SparkReturnType::Enum wrapVarTypeInEnum(const char *varKey)
-{
-  switch (userVarType(varKey))
-  {
-    case 1:
-      return SparkReturnType::BOOLEAN;
-      break;
-
-    case 4:
-      return SparkReturnType::STRING;
-      break;
-
-    case 9:
-      return SparkReturnType::DOUBLE;
-      break;
-
-    case 2:
-    default:
-      return SparkReturnType::INT;
-  }
-}
+//SparkReturnType::Enum wrapVarTypeInEnum(const char *varKey)
+//{
+//  switch (userVarType(varKey))
+//  {
+//    case 1:
+//      return SparkReturnType::BOOLEAN;
+//      break;
+//
+//    case 4:
+//      return SparkReturnType::STRING;
+//      break;
+//
+//    case 9:
+//      return SparkReturnType::DOUBLE;
+//      break;
+//
+//    case 2:
+//    default:
+//      return SparkReturnType::INT;
+//  }
+//}
 
 void Spark_Protocol_Init(void)
 {
-  if (!spark_protocol.is_initialized())
-  {
-    SparkCallbacks callbacks;
-    callbacks.send = Spark_Send;
-    callbacks.receive = Spark_Receive;
-    callbacks.prepare_for_firmware_update = Spark_Prepare_For_Firmware_Update;
-    callbacks.finish_firmware_update = Spark_Finish_Firmware_Update;
-    callbacks.calculate_crc = Compute_CRC32;
-    callbacks.save_firmware_chunk = Spark_Save_Firmware_Chunk;
-    callbacks.signal = Spark_Signal;
-    callbacks.millis = millis;
-
-    SparkDescriptor descriptor;
-    descriptor.num_functions = numUserFunctions;
-    descriptor.copy_function_key = copyUserFunctionKey;
-    descriptor.call_function = userFuncSchedule;
-    descriptor.num_variables = numUserVariables;
-    descriptor.copy_variable_key = copyUserVariableKey;
-    descriptor.variable_type = wrapVarTypeInEnum;
-    descriptor.get_variable = getUserVar;
-    descriptor.was_ota_upgrade_successful = OTA_Flashed_GetStatus;
-    descriptor.ota_upgrade_status_sent = OTA_Flashed_ResetStatus;
-
-    unsigned char pubkey[EXTERNAL_FLASH_SERVER_PUBLIC_KEY_LENGTH];
-    unsigned char private_key[EXTERNAL_FLASH_CORE_PRIVATE_KEY_LENGTH];
-
-    SparkKeys keys;
-    keys.server_public = pubkey;
-    keys.core_private = private_key;
-
-    FLASH_Read_ServerPublicKey(pubkey);
-    FLASH_Read_CorePrivateKey(private_key);
-
-    spark_protocol.init((const char *)ID1, keys, callbacks, descriptor);
-  }
+//  if (!spark_protocol.is_initialized())
+//  {
+//    SparkCallbacks callbacks;
+//    callbacks.send = Spark_Send;
+//    callbacks.receive = Spark_Receive;
+//    callbacks.prepare_for_firmware_update = Spark_Prepare_For_Firmware_Update;
+//    callbacks.finish_firmware_update = Spark_Finish_Firmware_Update;
+//    callbacks.calculate_crc = Compute_CRC32;
+//    callbacks.save_firmware_chunk = Spark_Save_Firmware_Chunk;
+//    callbacks.signal = Spark_Signal;
+//    callbacks.millis = millis;
+//
+//    SparkDescriptor descriptor;
+//    descriptor.num_functions = numUserFunctions;
+//    descriptor.copy_function_key = copyUserFunctionKey;
+//    descriptor.call_function = userFuncSchedule;
+//    descriptor.num_variables = numUserVariables;
+//    descriptor.copy_variable_key = copyUserVariableKey;
+//    descriptor.variable_type = wrapVarTypeInEnum;
+//    descriptor.get_variable = getUserVar;
+//    descriptor.was_ota_upgrade_successful = OTA_Flashed_GetStatus;
+//    descriptor.ota_upgrade_status_sent = OTA_Flashed_ResetStatus;
+//
+//    unsigned char pubkey[EXTERNAL_FLASH_SERVER_PUBLIC_KEY_LENGTH];
+//    unsigned char private_key[EXTERNAL_FLASH_CORE_PRIVATE_KEY_LENGTH];
+//
+//    SparkKeys keys;
+//    keys.server_public = pubkey;
+//    keys.core_private = private_key;
+//
+//    FLASH_Read_ServerPublicKey(pubkey);
+//    FLASH_Read_CorePrivateKey(private_key);
+//
+//    spark_protocol.init((const char *)ID1, keys, callbacks, descriptor);
+//  }
 }
 
 int Spark_Handshake(void)
 {
-  Spark_Protocol_Init();
-  spark_protocol.reset_updating();
-  int err = spark_protocol.handshake();
-  Multicast_Presence_Announcement();
-  return err;
+//  Spark_Protocol_Init();
+//  spark_protocol.reset_updating();
+//  int err = spark_protocol.handshake();
+//  Multicast_Presence_Announcement();
+//  return err;
+return 0;
 }
 
 // Returns true if all's well or
 //         false on error, meaning we're probably disconnected
 bool Spark_Communication_Loop(void)
 {
-  return spark_protocol.event_loop();
+    return true;
+  //return spark_protocol.event_loop();
 }
 
 void Multicast_Presence_Announcement(void)
@@ -507,7 +509,7 @@ void Multicast_Presence_Announcement(void)
     return;
 
   unsigned char announcement[19];
-  spark_protocol.presence_announcement(announcement, (const char *)ID1);
+  //spark_protocol.presence_announcement(announcement, (const char *)ID1);
 
   // create multicast address 224.0.1.187 port 5683
   sockaddr addr;
