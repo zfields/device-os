@@ -90,9 +90,8 @@ void setup()
 
 void loop()
 {
-    if (WLAN_DHCP && (dhcp_notices < 100)) {
-		Serial.println("DHCP DHCP DHCP !");
-		Serial1.println("DHCP DHCP DHCP !");
+    if (WLAN_DHCP && (dhcp_notices < 5)) {
+        serialPrintln(" DHCP DHCP DHCP ! DHCP DHCP DHCP ! DHCP DHCP DHCP !");
 		RGB.color(255, 0, 255);
 		digitalWrite(D2, HIGH);
 		dhcp_notices++;
