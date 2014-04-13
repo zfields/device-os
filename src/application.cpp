@@ -183,9 +183,9 @@ void checkWifiSerial(char c) {
             Delay(1000);
 
             //FACTORY RESET
-            BKP_WriteBackupRegister(BKP_DR10, 0xFF55);
+
             USE_SYSTEM_FLAGS = 1;
-            FLASH_OTA_Update_SysFlag = 0xFF55;
+            Factory_Reset_SysFlag = 0xAAAA;
             Save_SystemFlags();
             Delay(100);
 
