@@ -126,6 +126,10 @@ void checkWifiSerial(char c) {
 	}
 	else if (c == ';') {
 		serialPrintln("got semicolon.");
+
+		serialPrint("checking command: ");
+		serialPrintln(command);
+
 		serialPrint("checking command: ");
 		serialPrintln(command);
 
@@ -142,11 +146,13 @@ void checkWifiSerial(char c) {
             serialPrintln("parts...");
             serialPrintln(parts[0]);
             serialPrintln(parts[1]);
-            serialPrintln(parts[2]);
+            if (parts[2]) {
+                serialPrintln(parts[2]);
+            }
 
             serialPrintln("connecting...");
             wifi_testing = 1;
-            tester_connect(parts[1], parts[2]);
+            tester_connect(parts[1], /* parts[2] */ NULL);
         }
         else if (start = strstr(command, cmd_DFU)) {
             cmd_index = 0;
@@ -199,6 +205,7 @@ void checkWifiSerial(char c) {
             LED_On(LED_RGB);
 
             serialPrintln("unlocking... Done unlocking! Done unlocking! Done unlocking!");
+            serialPrintln("unlocking... Done unlocking! Done unlocking! Done unlocking!");
         }
         else if (start = strstr(command, cmd_LOCK)) {
             cmd_index = 0;
@@ -212,6 +219,7 @@ void checkWifiSerial(char c) {
             LED_On(LED_RGB);
 
             serialPrintln("Locking... Done locking! Done locking! Done locking!");
+            serialPrintln("Locking... Done locking! Done locking! Done locking!");
         }
 
 
@@ -222,10 +230,16 @@ void checkWifiSerial(char c) {
 void serialPrintln(const char * str) {
 	Serial.println(str);
 	Serial1.println(str);
+
+	Serial.flush();
+	Serial1.flush();
 }
 void serialPrint(const char * str) {
 	Serial.print(str);
 	Serial1.print(str);
+
+    Serial.flush();
+	Serial1.flush();
 }
 
 uint8_t serialAvailable() {
@@ -246,6 +260,10 @@ void tokenizeCommand(char *cmd, char* parts[]) {
 	char * pch;
 	int idx = 0;
 
+	for(int i=0;i<5;i++) {
+	    parts[i] = NULL;
+	}
+
 	//printf ("Splitting string \"%s\" into tokens:\n", cmd);
 	pch = strtok (cmd,":;");
 	while (pch != NULL)
@@ -262,9 +280,16 @@ void tokenizeCommand(char *cmd, char* parts[]) {
 
 void tester_connect(char *ssid, char *pass) {
 
-     RGB.color(64, 64, 0);
+    RGB.color(64, 64, 0);
 
-    SPARK_MANUAL_CREDS(ssid, pass);
+    char auth = WLAN_SEC_WPA2;
+
+    if (!pass || (strlen(pass) == 0)) {
+        auth = WLAN_SEC_UNSEC;
+    }
+
+
+    SPARK_MANUAL_CREDS(ssid, pass, auth);
 
 	RGB.color(0, 0, 64);
 //

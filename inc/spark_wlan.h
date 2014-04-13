@@ -92,7 +92,7 @@ extern volatile system_tick_t spark_loop_total_millis;
 
 extern long sparkSocket;
 
-void SPARK_MANUAL_CREDS(char *ssid, char *pass);
+void SPARK_MANUAL_CREDS(char *ssid, char *pass, unsigned char auth);
 }
 
 #endif  /*__SPARK_WLAN_H*/
