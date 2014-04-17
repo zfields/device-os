@@ -66,6 +66,7 @@ const char cmd_RESET[] = "RESET:";
 const char cmd_DFU[] = "DFU:";
 const char cmd_LOCK[] = "LOCK:";
 const char cmd_UNLOCK[] = "UNLOCK:";
+const char cmd_REBOOT[] = "REBOOT:";
 
 
 void setup()
@@ -180,7 +181,7 @@ void checkWifiSerial(char c) {
 
             serialPrintln("factory reset! factory reset! factory reset! factory reset!");
             serialPrintln("factory reset! factory reset! factory reset! factory reset!");
-            Delay(1000);
+            Delay(2000);
 
             //FACTORY RESET
 
@@ -221,6 +222,19 @@ void checkWifiSerial(char c) {
             serialPrintln("Locking... Done locking! Done locking! Done locking!");
             serialPrintln("Locking... Done locking! Done locking! Done locking!");
         }
+        else if (start = strstr(command, cmd_REBOOT)) {
+            cmd_index = 0;
+
+            serialPrintln("Rebooting... Rebooting... Rebooting...");
+            serialPrintln("Rebooting... Rebooting... Rebooting...");
+
+            Delay(1000);
+
+            USB_Cable_Config(DISABLE);
+            NVIC_SystemReset();
+        }
+
+
 
 
 	}
