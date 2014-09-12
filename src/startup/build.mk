@@ -16,6 +16,6 @@ CSRC +=
 CPPSRC +=
 
 # ASM source files included in this build.
-ASRC += $(TARGET_STARTUP_PATH)/startup_stm32f10x_md.S
+ASRC += $(TARGET_STARTUP_PATH)/startup_$(STM32_DEVICE).S
 
 
