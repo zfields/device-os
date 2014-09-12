@@ -3,7 +3,7 @@ MAKE_ARGS = --no-print-directory
 
 # don't propagate command line definitions to submakes, specifically, TARGET,
 # since this will override the local makefile's definition of that. 
-MAKEOVERRIDES=
+MAKEOVERRIDES:=$(filter-out TARGET,$(MAKEOVERRIDES))
 
 # by convention, all symbols referring to a directory end with a slash - this allows
 # directories to resolve to "" when equal to the working directory
@@ -124,7 +124,6 @@ CFLAGS += -MD -MP -MF $@.d
 
 # Target specific defines
 CFLAGS += -DUSE_STDPERIPH_DRIVER
-CFLAGS += -DSTM32F10X_MD
 CFLAGS += -DDFU_BUILD_ENABLE
 CFLAGS += -DSPARK=1
 
@@ -138,11 +137,30 @@ else
 CFLAGS += -DRELEASE_BUILD
 endif
 
+ifeq ("$(SPARK_PRODUCT_ID)","")
+SPARK_PRODUCT_ID=0
+$(info SPARK_PRODUCT_ID not set, assuming 0)
+endif
+
+# Determine the target device from the product ID
+# (todo - in the long run, this would be much easier as a .h file included before any usage of the stm32 headers.)
+STM32_DEVICE=stm32f10x_md
+ifeq ("$(SPARK_PRODUCT_ID)","2")
+STM32_DEVICE=stm32f10x_hd
+endif
+
+STM32_DEVICE_SYMBOL = $(shell echo $(STM32_DEVICE) | tr a-z A-Z)
+CFLAGS += -D$(STM32_DEVICE_SYMBOL)
+
+
+CFLAGS += -DSPARK_PRODUCT_ID=$(SPARK_PRODUCT_ID)
+
+
 # C++ specific flags
 CPPFLAGS += -fno-rtti -fno-exceptions
 
 # Linker flags
-LDFLAGS += -T$(PROJECT_DIR)linker/linker_stm32f10x_md_dfu.ld -nostartfiles -Xlinker --gc-sections 
+LDFLAGS += -T$(PROJECT_DIR)linker/linker_$(STM32_DEVICE)_dfu.ld -nostartfiles -Xlinker --gc-sections 
 LDFLAGS += -L$(PROJECT_DIR)$(LIB_CORE_COMMON_PATH)build -lcore-common-lib
 LDFLAGS += -L$(PROJECT_DIR)$(LIB_CORE_COMMUNICATION_PATH)build -lcore-communication-lib
 LDFLAGS += -Wl,-Map,$(TARGETDIR)$(TARGET).map
@@ -152,6 +170,7 @@ LDFLAGS += -u _printf_float
 # Assembler flags
 ASFLAGS =  -g3 -gdwarf-2 -mcpu=cortex-m3 -mthumb 
 ASFLAGS += -x assembler-with-cpp -fmessage-length=0
+ASFLAGS += -I"../src/startup"
 
 # Collect all object and dep files
 ALLOBJ += $(addprefix $(BUILD_PATH), $(CSRC:.c=.o))
