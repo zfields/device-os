@@ -68,6 +68,8 @@ static void IntToUnicode (uint32_t value , uint8_t *pbuf , uint8_t len);
 extern LINE_CODING linecoding;
 
 /* Private function prototypes -----------------------------------------------*/
+extern void Bootloader_Patch_Update() __attribute__((weak));
+
 
 /* Private functions ---------------------------------------------------------*/
 
@@ -99,20 +101,20 @@ extern "C" void SparkCoreConfig(void)
 
 	/* Enable CRC clock */
 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_CRC, ENABLE);
+
+        if (Bootloader_Patch_Update) 
+            Bootloader_Patch_Update();
 #if !defined (RGB_NOTIFICATIONS_ON)	&& defined (RGB_NOTIFICATIONS_OFF)
 	LED_RGB_OVERRIDE = 1;
 #endif
 
-#if defined (SPARK_RTC_ENABLE)
-	RTC_Configuration();
-#endif
-
-        /* Execute Stop mode if STOP mode flag is set via Spark.sleep(pin, mode) */
-        Enter_STOP_Mode();
-
         LED_SetRGBColor(RGB_COLOR_WHITE);
         LED_On(LED_RGB);
         SPARK_LED_FADE = 1;
+
+#if defined (SPARK_RTC_ENABLE)
+	RTC_Configuration();
+#endif
 
 #ifdef IWDG_RESET_ENABLE
 	// ToDo this needs rework for new bootloader
