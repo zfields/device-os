@@ -3,7 +3,7 @@ MAKE_ARGS = --no-print-directory
 
 # don't propagate command line definitions to submakes, specifically, TARGET,
 # since this will override the local makefile's definition of that. 
-MAKEOVERRIDES:=$(filter-out TARGET,$(MAKEOVERRIDES))
+MAKEOVERRIDES:=$(filter-out TARGET%,$(MAKEOVERRIDES))
 
 # by convention, all symbols referring to a directory end with a slash - this allows
 # directories to resolve to "" when equal to the working directory
