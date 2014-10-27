@@ -42,13 +42,18 @@ CFLAGS += -DSPARK_PLATFORM_NET=$(PLATFORM_NET)
 
 # Linker flags
 LDFLAGS += -Wl,-Map,$(TARGET_BASE).map
+
+
 ifeq ("$(ARCH)","arm")
 
-LDFLAGS += -T$(COMMON_BUILD)/arm/linker/linker_$(STM32_DEVICE_LC)_dfu.ld
+ELF_LINKER_SCRIPT = $(COMMON_BUILD)/arm/linker/linker_$(STM32_DEVICE_LC)_dfu.ld
+ELF_STARTUP_SCRIPT = $(COMMON_BUILD)/arm/startup/startup_$(STM32_DEVICE_LC).S
+
+LDFLAGS += -T$(ELF_LINKER_SCRIPT)
 LDFLAGS += --specs=nano.specs -lc -lnosys
 LDFLAGS += -u _printf_float
 
-ASRC += $(COMMON_BUILD)/arm/startup/startup_$(STM32_DEVICE_LC).S 
+ASRC += $(ELF_STARTUP_SCRIPT)
 ASFLAGS += -I$(COMMON_BUILD)/arm/startup
 ASFLAGS +=  -Wa,--defsym -Wa,SPARK_INIT_STARTUP=1
 

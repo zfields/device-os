@@ -19,7 +19,7 @@ include ../build/product-id.mk
 ifeq ("$(ARCH)","gcc")
 TARGET=exe
 else
-TARGET=elf bin hex size 
+TARGET=elf bin hex size lst sym export
 endif
 
 

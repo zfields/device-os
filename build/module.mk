@@ -77,13 +77,16 @@ TARGET ?= $(TARGET_BASE).$(TARGET_TYPE)
 # All Target
 all: $(MAKE_DEPENDENCIES) $(TARGET)
 
+none: 
+
 elf: $(TARGET_BASE).elf
 bin: $(TARGET_BASE).bin
 hex: $(TARGET_BASE).hex
 lst: $(TARGET_BASE).lst
+sym: $(TARGET_BASE).sym
+export: $(TARGET_BASE).ld	
 exe: $(TARGET_BASE).exe
 	@echo Built x-compile executable at $(TARGET_BASE).exe
-none: 
 
 # Program the core using dfu-util. The core should have been placed
 # in bootloader mode before invoking 'make program-dfu'
@@ -110,6 +113,20 @@ size: $(TARGET_BASE).elf
 	$(call,echo,'Finished building: $@')
 	$(call,echo,)
 
+# create a symbdefs listing from the elf file
+%.sym: %.elf
+	$(call,echo,'Invoking: ARM GNU Generate Symboldefs')
+	$(VERBOSE)$(NM) -S $< > $@
+	$(call,echo,'Finished building: $@')
+	$(call,echo,)
+
+%.ld: %.sym
+	$(call,echo,'Invoking: ARM GNU Generate Linker Export Script')
+	$(VERBOSE)$(AWK) -f $(COMMON_BUILD)/ld_from_symdefs.awk $< > $@
+	$(call,echo,'Finished building: $@')
+	$(call,echo,)
+
+
 # Create a hex file from ELF file
 %.hex : %.elf
 	$(call,echo,'Invoking: ARM GNU Create Flash Image')
@@ -122,7 +139,8 @@ size: $(TARGET_BASE).elf
 	$(VERBOSE)$(OBJCOPY) -O binary $< $@
 	$(call,echo,)
 
-$(TARGET_BASE).exe $(TARGET_BASE).elf : $(ALLOBJ)
+# link elf and exe's
+$(TARGET_BASE).exe $(TARGET_BASE).elf : $(ALLOBJ) $(ELF_LINKER_SCRIPT)
 	$(call,echo,'Building target: $@')
 	$(call,echo,'Invoking: ARM GCC C++ Linker')
 	$(VERBOSE)$(MKDIR) $(dir $@)
@@ -153,6 +171,16 @@ $(BUILD_PATH)/%.o : $(COMMON_BUILD)/arm/%.S
 	$(VERBOSE)$(MKDIR) $(dir $@)
 	$(VERBOSE)$(CC) $(ASFLAGS) -c -o $@ $<
 	$(call,echo,)
+
+# Assember to build .o from .S in $(BUILD_DIR)
+$(BUILD_PATH)/%.o : $(MODULE_PATH)/%.S
+	$(call,echo,'Building file: $<')
+	$(call,echo,'Invoking: ARM GCC Assembler')
+	$(VERBOSE)$(MKDIR) $(dir $@)
+	$(VERBOSE)$(CC) $(ASFLAGS) -c -o $@ $<
+	$(call,echo,)
+
+
 	
 # CPP compiler to build .o from .cpp in $(BUILD_DIR)
 # Note: Calls standard $(CC) - gcc will invoke g++ as appropriate
@@ -169,7 +197,7 @@ clean: clean_deps
 	$(VERBOSE)$(RMDIR) $(BUILD_PATH)
 	$(call,echo,)
 
-.PHONY: all none elf bin hex size program-dfu program-cloud
+.PHONY: all none elf bin hex lst sym size program-dfu program-cloud export
 .SECONDARY:
 
 include $(COMMON_BUILD)/recurse.mk
