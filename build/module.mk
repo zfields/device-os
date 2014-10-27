@@ -94,6 +94,11 @@ program-dfu: $(TARGET_BASE).bin
 	@echo Flashing using dfu:
 	$(DFU) -d 1d50:607f -a 0 -s 0x08005000:leave -D $<
 
+program-app-dfu: $(TARGET_BASE).bin
+	@echo Flashing app using dfu:
+	$(DFU) -d 1d50:607f -a 0 -s 0x08019000:leave -D $<
+
+
 # Program the core using the cloud. SPARK_CORE_ID and SPARK_ACCESS_TOKEN must
 # have been defined in the environment before invoking 'make program-cloud'
 program-cloud: $(TARGET_BASE).bin

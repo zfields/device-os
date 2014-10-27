@@ -20,6 +20,6 @@ CPPFLAGS += -fno-exceptions -fno-rtti
 
 ASFLAGS +=  -g3 -gdwarf-2 -mcpu=cortex-m3 -mthumb 
 
-LDFLAGS += -nostartfiles 
+LDFLAGS += -nostartfiles -Xlinker --gc-sections
 
 
