@@ -141,10 +141,13 @@ SECTIONS
 	    /* This is used by the startup in order to initialize the .data secion */
    	 _edata = . ;
     } >RAM
-    
+        
+
     /* This is the uninitialized data section */
     .bss :
     {
+        /** Get the actual start address to the full length can be computed */
+        _sbss_ = . ;
 	    . = ALIGN(4);
         /* This is used by the startup in order to initialize the .bss secion */
         _sbss = .;
@@ -154,9 +157,17 @@ SECTIONS
         *(COMMON)
         
 	    . = ALIGN(4);
-	    /* This is used by the startup in order to initialize the .bss secion */
+	    /* This is used by the startup in order to initialize the .bss section */
    	 _ebss = . ;
     } >RAM
+    
+    _flashpage = 4096 ;
+
+    /* end of image in flash */
+    _endsystemimage = _sidata + ( _edata - _sdata_ ) ; 
+    _flashPageMinus1 = _flashpage - 1;
+    _endsystempage = ( _endsystemimage + _flashPageMinus1) & (~ _flashPageMinus1 ) ;
+    _user_module_exports = _endsystempage ;
     
     PROVIDE ( end = _ebss );
     PROVIDE ( _end = _ebss );

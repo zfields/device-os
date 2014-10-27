@@ -34,6 +34,10 @@ int tinkerAnalogWrite(String command);
 
 SYSTEM_MODE(AUTOMATIC);
 
+typedef int (*pfn)();
+
+extern pfn _user_module_exports[];
+
 /* This function is called once at start up ----------------------------------*/
 void setup()
 {
@@ -44,12 +48,29 @@ void setup()
 	Spark.function("digitalwrite", tinkerDigitalWrite);
 
 	Spark.function("analogread", tinkerAnalogRead);
-	Spark.function("analogwrite", tinkerAnalogWrite);
+	Spark.function("analogwrite", tinkerAnalogWrite);        
+    
+    Serial.begin(9600);    
 }
 
 /* This function loops forever --------------------------------------------*/
 void loop()
 {
+    if (Serial.available()) {
+        Serial.read();
+        Serial.print("Module exports at ");
+        Serial.println((int)(void*)&_user_module_exports, HEX);
+        Serial.println("Awakening of the great foo at ");
+        //pfn foo = (pfn)0x08018021;
+        pfn foo = _user_module_exports[1];
+        Serial.println((int)(void*)foo, HEX);
+        delay(200);
+        int result = foo();
+        Serial.println(result);
+        delay(200);
+        Serial.println("The great foo is risen");
+        delay(200);
+    }
         //This will run in a loop
 }
 
