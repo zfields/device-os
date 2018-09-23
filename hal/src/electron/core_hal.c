@@ -491,7 +491,7 @@ void DMA1_Stream1_IRQHandler(void)  {__ASM("bkpt 0");}
 //void DMA1_Stream2_IRQHandler(void)  {__ASM("bkpt 0");}
 void DMA1_Stream3_IRQHandler(void)  {__ASM("bkpt 0");}
 void DMA1_Stream4_IRQHandler(void)  {__ASM("bkpt 0");}
-void DMA1_Stream5_IRQHandler(void)  {__ASM("bkpt 0");}
+//void DMA1_Stream5_IRQHandler(void)  {__ASM("bkpt 0");}
 void DMA1_Stream6_IRQHandler(void)  {__ASM("bkpt 0");}
 void I2C2_EV_IRQHandler(void)       {__ASM("bkpt 0");}
 void I2C2_ER_IRQHandler(void)       {__ASM("bkpt 0");}
