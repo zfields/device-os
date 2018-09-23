@@ -95,6 +95,7 @@ void DMA1_Stream7_irq(void);
 void DMA2_Stream5_irq(void);
 void DMA1_Stream2_irq(void);
 void DMA2_Stream2_irq_override(void);
+void DMA1_Stream5_IRQHandler(void);
 
 void EXTI0_IRQHandler(void);
 void EXTI1_IRQHandler(void);

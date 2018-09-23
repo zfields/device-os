@@ -80,7 +80,7 @@ IDX[x] = added IRQ handler
 29 [x] DMA1_Stream2_IRQHandler           // DMA1 Stream 2
 30 [ ] DMA1_Stream3_IRQHandler           // DMA1 Stream 3
 31 [ ] DMA1_Stream4_IRQHandler           // DMA1 Stream 4
-32 [ ] DMA1_Stream5_IRQHandler           // DMA1 Stream 5
+32 [x] DMA1_Stream5_IRQHandler           // DMA1 Stream 5
 33 [ ] DMA1_Stream6_IRQHandler           // DMA1 Stream 6
 34 [x] ADC_IRQHandler                    // ADC1, ADC2 and ADC3s
 35 [x] CAN1_TX_IRQHandler                // CAN1 TX
@@ -163,6 +163,7 @@ const unsigned EXTI2_IRQHandler_Idx                 = 24;
 const unsigned EXTI3_IRQHandler_Idx                 = 25;
 const unsigned EXTI4_IRQHandler_Idx                 = 26;
 const unsigned DMA1_Stream2_IRQHandler_Idx          = 29;
+const unsigned DMA1_Stream5_IRQHandler_Idx          = 32;
 const unsigned ADC_IRQHandler_Idx                   = 34;
 const unsigned CAN1_TX_IRQHandler_Idx               = 35;
 const unsigned CAN1_RX0_IRQHandler_Idx              = 36;
@@ -293,6 +294,7 @@ void HAL_Core_Setup_override_interrupts(void)
     isrs[DMA1_Stream7_IRQHandler_Idx]       = (uint32_t)DMA1_Stream7_irq;
     isrs[DMA2_Stream5_IRQHandler_Idx]       = (uint32_t)DMA2_Stream5_irq;
     isrs[DMA1_Stream2_IRQHandler_Idx]       = (uint32_t)DMA1_Stream2_irq;
+    isrs[DMA1_Stream5_IRQHandler_Idx]       = (uint32_t)DMA1_Stream5_IRQHandler;
 
     isrs[RTC_Alarm_IRQHandler_Idx]          = (uint32_t)RTC_Alarm_irq;
     SCB->VTOR = (unsigned long)isrs;
@@ -606,7 +608,7 @@ void DMA1_Stream1_IRQHandler(void)  {__ASM("bkpt 0");}
 //void DMA1_Stream2_IRQHandler(void)  {__ASM("bkpt 0");}
 void DMA1_Stream3_IRQHandler(void)  {__ASM("bkpt 0");}
 void DMA1_Stream4_IRQHandler(void)  {__ASM("bkpt 0");}
-void DMA1_Stream5_IRQHandler(void)  {__ASM("bkpt 0");}
+//void DMA1_Stream5_IRQHandler(void)  {__ASM("bkpt 0");}
 void DMA1_Stream6_IRQHandler(void)  {__ASM("bkpt 0");}
 void I2C2_EV_IRQHandler(void)       {__ASM("bkpt 0");}
 void I2C2_ER_IRQHandler(void)       {__ASM("bkpt 0");}
