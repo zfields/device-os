@@ -9,7 +9,8 @@
 #include <stm32f2xx_rcc.h>
 #include <stm32f2xx_spi.h>
 
-#include "concurrent_hal.h"
+//TODO: Clarify how to yield the processor
+//#include "concurrent_hal.h"
 #include "gpio_hal.h"
 #include "hal_irq_flag.h"
 #include "pinmap_impl.h"
@@ -249,7 +250,7 @@ HAL_I2S_Begin (
         // Enable I2S PLL Clock
         RCC_I2SCLKConfig(RCC_I2S2CLKSource_PLLI2S);
         RCC_PLLI2SCmd(ENABLE);
-        for (; RCC_FLAG_PLLI2SRDY != RCC_GetFlagStatus(RCC_FLAG_PLLI2SRDY) ; os_thread_yield());
+        for (; RCC_FLAG_PLLI2SRDY != RCC_GetFlagStatus(RCC_FLAG_PLLI2SRDY) ; /*os_thread_yield()*/);
 
         // Initialize the I2S Bus
         I2S_Init(i2s_req.I2S_Peripheral, &i2s.i2s_config);
@@ -288,8 +289,8 @@ HAL_I2S_End (
     // Disable I2S
     } else {
         // Disable the I2S Bus (it is mandatory to wait for TXE = 1 and BSY = 0)
-        for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_TXE) ; os_thread_yield());
-        for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; os_thread_yield());
+        for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_TXE) ; /*os_thread_yield()*/);
+        for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; /*os_thread_yield()*/);
 
         // Release DMA and peripheral resources
         DMA_Cmd(i2s_req.I2S_EXT_TX_DMA_Stream, DISABLE);
@@ -327,7 +328,7 @@ HAL_I2S_Init (
 ) {
     // Validate paramters
     if (interface_ >= TOTAL_I2S) {
-    
+
     // Initialize state
     } else {
         I2S_StructInit(&i2s.i2s_config);
@@ -382,7 +383,7 @@ HAL_I2S_Transmit (
     // Validate paramters
     } else if (interface_ != i2s.active_interface) {
     } else if (!buffer_) {
-    
+
     // DMA flow controller: the number of data items to be
     // transferred is software-programmable from 1 to 65535
     } else if (!buffer_size_ || buffer_size_ > 65535) {
@@ -421,7 +422,7 @@ HAL_I2S_Transmit (
         // user application using the function DMA_GetCmdStatus() before
         // calling the DMA_Init() function.
         DMA_DeInit(i2s_req.I2S_EXT_TX_DMA_Stream);
-        for (; ENABLE == DMA_GetCmdStatus(i2s_req.I2S_EXT_TX_DMA_Stream) ; os_thread_yield());
+        for (; ENABLE == DMA_GetCmdStatus(i2s_req.I2S_EXT_TX_DMA_Stream) ; /*os_thread_yield()*/);
         DMA_Init(i2s_req.I2S_EXT_TX_DMA_Stream, &i2s.dma_config);
 
         // Enable the I2S Tx DMA request (transmit buffer)
@@ -438,7 +439,7 @@ HAL_I2S_Transmit (
 
         // Poll for transfer complete flag (block) if no callback was provided
         if (!tx_callback_) {
-            for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; os_thread_yield());
+            for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; /*os_thread_yield()*/);
         }
 
         // Indicate bytes sent
