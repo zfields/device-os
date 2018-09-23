@@ -1,7 +1,8 @@
 /**
  ******************************************************************************
- * @file    hal_dynalib_export.c
- * @author  Matthew McGowan
+ * @file    hal_dynalib_i2s.h
+ * @authors Zachary J. Fields
+ * @date    23 September 2018
  ******************************************************************************
   Copyright (c) 2015 Particle Industries, Inc.  All rights reserved.
 
@@ -20,28 +21,29 @@
  ******************************************************************************
  */
 
-#define DYNALIB_EXPORT
-#include "hal_dynalib.h"
-#include "hal_dynalib_core.h"
-#include "hal_dynalib_gpio.h"
-#include "hal_dynalib_i2c.h"
-#include "hal_dynalib_i2s.h"
-#include "hal_dynalib_ota.h"
-#include "hal_dynalib_peripherals.h"
-#include "hal_dynalib_socket.h"
-#include "hal_dynalib_spi.h"
-#include "hal_dynalib_usart.h"
-#include "hal_dynalib_wlan.h"
-#include "hal_dynalib_concurrent.h"
-#include "hal_dynalib_cellular.h"
-#include "hal_dynalib_can.h"
-#include "hal_dynalib_rgbled.h"
-#include "hal_dynalib_dct.h"
+#ifndef HAL_DYNALIB_I2S_H
+#define	HAL_DYNALIB_I2S_H
 
-#ifndef HAL_USB_EXCLUDE
-#include "hal_dynalib_usb.h"
+#include "dynalib.h"
+
+#ifdef DYNALIB_EXPORT
+#include "i2s_hal.h"
 #endif
 
-#ifndef HAL_BOOTLOADER_EXCLUDE
-#include "hal_dynalib_bootloader.h"
-#endif
+// WARNING
+// The order of functions must not be changed or older applications will break
+// when used with newer system firmware.
+// Function signatures shouldn't be changed other than changing pointer types.
+// New HAL functions must be added to the end of this list.
+// GNINRAW
+
+DYNALIB_BEGIN(hal_i2s)
+
+DYNALIB_FN(0, hal_i2s, HAL_I2S_Begin, int(HAL_I2S_Interface, hal_i2s_config_t *))
+DYNALIB_FN(1, hal_i2s, HAL_I2S_End, void(HAL_I2S_Interface))
+DYNALIB_FN(2, hal_i2s, HAL_I2S_Init, int(HAL_I2S_Interface))
+DYNALIB_FN(3, hal_i2s, HAL_I2S_Transmit, uint32_t(HAL_I2S_Interface, uint16_t *, size_t, hal_i2s_callback_t, void *))
+
+DYNALIB_END(hal_i2s)
+
+#endif	/* HAL_DYNALIB_I2S_H */
