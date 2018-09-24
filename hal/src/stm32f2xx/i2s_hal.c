@@ -250,7 +250,7 @@ HAL_I2S_Begin (
         // Enable I2S PLL Clock
         RCC_I2SCLKConfig(RCC_I2S2CLKSource_PLLI2S);
         RCC_PLLI2SCmd(ENABLE);
-        for (; RCC_FLAG_PLLI2SRDY != RCC_GetFlagStatus(RCC_FLAG_PLLI2SRDY) ; /*os_thread_yield()*/);
+        for (; SET != RCC_GetFlagStatus(RCC_FLAG_PLLI2SRDY) ; /*os_thread_yield()*/);
 
         // Initialize the I2S Bus
         I2S_Init(i2s_req.I2S_Peripheral, &i2s.i2s_config);
@@ -289,8 +289,8 @@ HAL_I2S_End (
     // Disable I2S
     } else {
         // Disable the I2S Bus (it is mandatory to wait for TXE = 1 and BSY = 0)
-        for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_TXE) ; /*os_thread_yield()*/);
-        for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; /*os_thread_yield()*/);
+        //TODO: for (; SET != SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_TXE) ; /*os_thread_yield()*/);
+        for (; RESET != SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; /*os_thread_yield()*/);
 
         // Release DMA and peripheral resources
         DMA_Cmd(i2s_req.I2S_EXT_TX_DMA_Stream, DISABLE);
@@ -309,7 +309,7 @@ HAL_I2S_End (
         RCC_AHB1PeriphResetCmd(i2s_req.DMA_RCC_AHBRegister, DISABLE);
 
         // Disable I2S PLL Clock
-        RCC_PLLI2SCmd(ENABLE);
+        RCC_PLLI2SCmd(DISABLE);
 
         // Return pins to INPUT mode
         HAL_Pin_Mode(i2s_req.i2s_pins[i2s.active_interface].I2S_SCK_Pin, INPUT);
@@ -439,7 +439,7 @@ HAL_I2S_Transmit (
 
         // Poll for transfer complete flag (block) if no callback was provided
         if (!tx_callback_) {
-            for (; SET == SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; /*os_thread_yield()*/);
+            for (; RESET != SPI_I2S_GetFlagStatus(i2s_req.I2S_Peripheral, SPI_I2S_FLAG_BSY) ; /*os_thread_yield()*/);
         }
 
         // Indicate bytes sent
