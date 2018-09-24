@@ -39,10 +39,10 @@
 
 DYNALIB_BEGIN(hal_i2s)
 
-DYNALIB_FN(0, hal_i2s, HAL_I2S_Begin, int(HAL_I2S_Interface, hal_i2s_config_t *))
+DYNALIB_FN(0, hal_i2s, HAL_I2S_Begin, int(HAL_I2S_Interface, const hal_i2s_config_t *))
 DYNALIB_FN(1, hal_i2s, HAL_I2S_End, void(HAL_I2S_Interface))
 DYNALIB_FN(2, hal_i2s, HAL_I2S_Init, int(HAL_I2S_Interface))
-DYNALIB_FN(3, hal_i2s, HAL_I2S_Transmit, uint32_t(HAL_I2S_Interface, uint16_t *, size_t, hal_i2s_callback_t, void *))
+DYNALIB_FN(3, hal_i2s, HAL_I2S_Transmit, uint32_t(HAL_I2S_Interface, const uint16_t *, size_t, hal_i2s_callback_t, void *))
 
 DYNALIB_END(hal_i2s)
 

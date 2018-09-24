@@ -69,7 +69,7 @@ typedef struct hal_i2s_config_t {
 int
 HAL_I2S_Begin (
     HAL_I2S_Interface i2s_,
-    hal_i2s_config_t * config_
+    const hal_i2s_config_t * config_
 );
 
 void
@@ -85,7 +85,7 @@ HAL_I2S_Init (
 uint32_t
 HAL_I2S_Transmit (
     HAL_I2S_Interface i2s_,
-    uint16_t * buffer_,
+    const uint16_t * buffer_,
     size_t buffer_size_,
     hal_i2s_callback_t tx_callback_,
     void * tx_context_

@@ -109,7 +109,7 @@ inline static
 int
 loadStm32f2xxI2sConfigFromHalI2sConfig (
     I2S_InitTypeDef * stm32f2xx_i2s_config_,
-    hal_i2s_config_t * hal_i2s_config_
+    const hal_i2s_config_t * hal_i2s_config_
 ) {
     // Convert data format
     switch (hal_i2s_config_->data_format) {
@@ -222,7 +222,7 @@ loadStm32f2xxI2sConfigFromHalI2sConfig (
 int
 HAL_I2S_Begin (
     HAL_I2S_Interface interface_,
-    hal_i2s_config_t * config_
+    const hal_i2s_config_t * config_
 ) {
     // Validate paramters
     if (interface_ != i2s.active_interface) {
@@ -372,7 +372,7 @@ HAL_I2S_Init (
 uint32_t
 HAL_I2S_Transmit (
     HAL_I2S_Interface interface_,
-    uint16_t * buffer_,
+    const uint16_t * buffer_,
     size_t buffer_size_,
     hal_i2s_callback_t tx_callback_,
     void * tx_context_
