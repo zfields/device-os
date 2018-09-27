@@ -219,6 +219,22 @@ loadStm32f2xxI2sConfigFromHalI2sConfig (
     return 0;
 }
 
+void NVIC_StructInit(NVIC_InitTypeDef* NVIC_InitStruct)
+{
+  /*-------------- Reset NVIC init structure parameters values ----------------*/
+  /* Initialize the NVIC_IRQChannel member */
+  NVIC_InitStruct->NVIC_IRQChannel = WWDG_IRQn;
+
+  /* Initialize the NVIC_IRQChannelPreemptionPriority member */
+  NVIC_InitStruct->NVIC_IRQChannelPreemptionPriority = 0;
+
+  /* Initialize the NVIC_IRQChannelSubPriority member */
+  NVIC_InitStruct->NVIC_IRQChannelSubPriority = 0;
+
+  /* Initialize the NVIC_IRQChannelCmd member */
+  NVIC_InitStruct->NVIC_IRQChannelCmd = DISABLE;
+}
+
 int
 HAL_I2S_Begin (
     HAL_I2S_Interface interface_,
@@ -257,12 +273,26 @@ HAL_I2S_Begin (
 
         // Select all the potential interruption sources and
         // the DMA capabilities by writing the SPI_CR2 register
+        i2s.dma_config.DMA_Channel = i2s_req.I2S_DMA_Channel;
+        i2s.dma_config.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+        i2s.dma_config.DMA_FIFOMode = DMA_FIFOMode_Disable;  // Direct mode
+        i2s.dma_config.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;  // Has no effect when FIFO mode is disabled
+        i2s.dma_config.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+        i2s.dma_config.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+        i2s.dma_config.DMA_MemoryInc = DMA_MemoryInc_Enable;
+        i2s.dma_config.DMA_Mode = DMA_Mode_Normal;  // Non-circular
+        i2s.dma_config.DMA_PeripheralBaseAddr = i2s_req.I2S_Peripheral->DR;
+        i2s.dma_config.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;  // Has no effect when peripheral increment is disabled
+        i2s.dma_config.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+        i2s.dma_config.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+        i2s.dma_config.DMA_Priority = DMA_Priority_High;
 
         // Enable DMA Controller Clock
         RCC_AHB1PeriphResetCmd(i2s_req.DMA_RCC_AHBRegister, ENABLE);
 
         // Setup the NVIC (see table in misc.c header)
         NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
+        i2s.nvic_config.NVIC_IRQChannel = i2s_req.I2S_EXT_TX_DMA_Stream_IRQn;
         i2s.nvic_config.NVIC_IRQChannelPreemptionPriority = 12;
         i2s.nvic_config.NVIC_IRQChannelSubPriority = 0;
         i2s.nvic_config.NVIC_IRQChannelCmd = ENABLE;
@@ -335,25 +365,9 @@ HAL_I2S_Init (
 
         // Initialize DMA Init Struct
         DMA_StructInit(&i2s.dma_config);
-        i2s.dma_config.DMA_Channel = i2s_req.I2S_DMA_Channel;
-        i2s.dma_config.DMA_DIR = DMA_DIR_MemoryToPeripheral;
-        i2s.dma_config.DMA_FIFOMode = DMA_FIFOMode_Disable;  // Direct mode
-        i2s.dma_config.DMA_FIFOThreshold = DMA_FIFOThreshold_Full;  // Has no effect when FIFO mode is disabled
-        i2s.dma_config.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-        i2s.dma_config.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
-        i2s.dma_config.DMA_MemoryInc = DMA_MemoryInc_Enable;
-        i2s.dma_config.DMA_Mode = DMA_Mode_Normal;  // Non-circular
-        i2s.dma_config.DMA_PeripheralBaseAddr = i2s_req.I2S_Peripheral->DR;
-        i2s.dma_config.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;  // Has no effect when peripheral increment is disabled
-        i2s.dma_config.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
-        i2s.dma_config.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-        i2s.dma_config.DMA_Priority = DMA_Priority_High;
 
         // Initialize NVIC Init Struct
-        i2s.nvic_config.NVIC_IRQChannel = i2s_req.I2S_EXT_TX_DMA_Stream_IRQn;
-        i2s.nvic_config.NVIC_IRQChannelCmd = ENABLE;
-        i2s.nvic_config.NVIC_IRQChannelPreemptionPriority = 12;
-        i2s.nvic_config.NVIC_IRQChannelSubPriority = 0;
+        NVIC_StructInit(&i2s.nvic_config);
 
         i2s.initialized = true;
         i2s.ready = false;
